@@ -6,7 +6,7 @@
     <title>EDAYA MAP</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -22,7 +22,7 @@
         .dept-path.has-data { fill: #1e1b4b; stroke: #6366f1; stroke-width: 0.8; }
         .dept-path.selected { fill: #4338ca; stroke: #ffffff; stroke-width: 1.5; }
         
-        /* Tooltip Premium */
+        /* Tooltip Noir Premium */
         .map-tooltip { 
             position: fixed; pointer-events: none; background: #000; color: #fff; 
             padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 900; 
@@ -43,11 +43,14 @@
             .sheet-open { transform: translateY(0); }
         }
 
-        .map-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 20px; }
+        .map-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 30px; }
         .france-svg { width: 100%; height: 100%; max-height: 95%; display: block; }
         
+        /* France (Sanctuaire) */
         .svg-fr { transform: translateY(-20px); }
-        .svg-be { transform: translateY(0px); width: 90%; }
+        
+        /* Belgique (Fidèle et dézoomée) */
+        .svg-be { transform: scale(0.85); }
 
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -117,28 +120,27 @@
 
             useEffect(() => {
                 if (step !== 'map') return;
-                // Source Belgique PROVINCES uniquement
+                // Lien GeoJSON Provinces UNIQUEMENT
                 const url = country === 'france' 
                     ? 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson'
-                    : 'https://raw.githubusercontent.com/fmdj/belgium-geojson/master/belgium-provinces.json';
+                    : 'https://raw.githubusercontent.com/leakyMirror/map-of-belgium/master/geojson/provinces.geojson';
                 
                 fetch(url).then(res => res.json()).then(data => {
                     setGeoPaths(data.features.map(f => {
-                        // On cherche le nom dans les propriétés possibles
                         const p = f.properties;
-                        const name = p.nom || p.Name_FR || p.NAME_1 || p.name || "Province";
+                        // On force la détection du nom de la province
+                        const name = p.Name_FR || p.name || p.Name || p.nom || "Province";
                         return { id: name, name: name, geometry: f.geometry };
                     }));
                 });
             }, [step, country]);
 
-            // PROJECTIONS CALCULÉES SPÉCIFIQUEMENT
             const project = useCallback((coords) => {
                 if (country === 'france') {
                     return [(coords[0] + 5.15) * 44, (51.8 - coords[1]) * 64]; 
                 }
-                // Belgique : Cadrage 2.5 - 6.5 (Largeur) et 49.5 - 51.5 (Hauteur)
-                return [(coords[0] - 2.5) * 140, (51.6 - coords[1]) * 210];
+                // Belgique : Ratio 1.6:1 pour une forme fidèle (Largeur vs Hauteur)
+                return [(coords[0] - 2.5) * 140, (51.55 - coords[1]) * 224];
             }, [country]);
 
             const renderPath = useCallback((geometry) => {
@@ -166,8 +168,6 @@
                 });
                 return visibleSet;
             }, [localData, filters]);
-
-            const handleMouseMove = (e) => { setMousePos({ x: e.clientX, y: e.clientY }); };
 
             if (step === 'login') return (
                 <div className="h-screen flex items-center justify-center bg-slate-950 p-4">
@@ -198,7 +198,7 @@
             );
 
             return (
-                <div className="app-container" onMouseMove={handleMouseMove}>
+                <div className="app-container" onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}>
                     {hoveredName && <div className="map-tooltip" style={{ left: mousePos.x + 20, top: mousePos.y - 20 }}>{hoveredName}</div>}
 
                     <header className="bg-slate-900 border-b border-white/5 shadow-2xl p-3 z-50">
@@ -210,10 +210,12 @@
                                 <h1 className="font-black italic text-lg lg:text-xl uppercase tracking-tighter">EDAYA MAP</h1>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => { setModalMode('add'); setActiveEntry({ name: '', city: '', dept: '', type: 'Lieu', cat: 'Accessible', address: '' }); }} className="bg-indigo-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black shadow-lg shadow-indigo-500/20"><Icon name="plus" /> <span>AJOUTER</span></button>
+                                <button onClick={() => { setModalMode('add'); setActiveEntry({ name: '', city: '', dept: '', type: 'Lieu', cat: 'Accessible', address: '' }); }} className="bg-indigo-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black shadow-lg">
+                                    <Icon name="plus" /> <span className="hidden sm:inline">AJOUTER</span>
+                                </button>
                                 <button onClick={() => fileInputRef.current.click()} className="bg-slate-700 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black"><Icon name="upload" /> <span className="hidden sm:inline">IMPORTER CSV</span></button>
                                 <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={(e) => {/* ton import */}} />
-                                <button onClick={() => {/* ton export */}} className="bg-emerald-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black"><Icon name="download" /> <span className="hidden sm:inline">EXPORTER CSV</span></button>
+                                <button className="bg-emerald-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black"><Icon name="download" /> <span className="hidden sm:inline">EXPORTER CSV</span></button>
                             </div>
                         </div>
                     </header>
@@ -222,8 +224,8 @@
                         <div className="sidebar-map flex flex-col overflow-hidden">
                             <div className="p-3 bg-slate-900/40 border-b border-white/5">
                                 <div className="grid grid-cols-2 gap-2">
-                                    <select onChange={(e) => setFilters(p => ({ ...p, type: e.target.value }))} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black border border-white/10 text-white cursor-pointer shadow-inner"><option value="All">TOUT TYPE</option><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option></select>
-                                    <select onChange={(e) => setFilters(p => ({ ...p, cat: e.target.value }))} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black border border-white/10 text-white cursor-pointer shadow-inner"><option value="All">STATUT</option><option>Accessible</option><option>Plus tard</option></select>
+                                    <select onChange={(e) => setFilters(p => ({ ...p, type: e.target.value }))} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black border border-white/10 text-white cursor-pointer"><option value="All">TOUT TYPE</option><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option></select>
+                                    <select onChange={(e) => setFilters(p => ({ ...p, cat: e.target.value }))} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black border border-white/10 text-white cursor-pointer"><option value="All">STATUT</option><option>Accessible</option><option>Plus tard</option></select>
                                 </div>
                             </div>
                             <div className="map-wrapper">
@@ -246,11 +248,11 @@
                             <div className="p-4 lg:p-8 flex-grow overflow-y-auto custom-scrollbar">
                                 <div className="flex justify-between items-end mb-6 border-b-2 border-indigo-600 pb-2">
                                     <h2 className="text-xl lg:text-4xl font-black uppercase italic tracking-tighter">{selectedDept ? `Zone ${selectedDept}` : "Opportunités"}</h2>
-                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase hover:bg-white/20">Voir tout</button>}
+                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase">Voir tout</button>}
                                 </div>
                                 <div className="grid grid-cols-1 gap-3 w-full">
                                     {filteredData.length > 0 ? filteredData.map(item => (
-                                        <div key={item.fbKey} className="glass p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all w-full shadow-lg">
+                                        <div key={item.fbKey} className="glass p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all w-full">
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1 min-w-0 pr-4">
                                                     <h4 className="font-black uppercase truncate text-sm lg:text-lg">{item.name}</h4>
@@ -284,10 +286,10 @@
                                     setModalMode(null);
                                 }} className="p-6 space-y-3">
                                     <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500 transition-colors" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
-                                    <div className="grid grid-cols-2 gap-3"><input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} /><input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} /></div>
+                                    <div className="grid grid-cols-2 gap-3"><input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} /><input required placeholder="Province / Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} /></div>
                                     <div className="grid grid-cols-2 gap-3"><select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option></select><select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select></div>
                                     <textarea placeholder="Notes / Adresse" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
-                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-indigo-500 transition-all">Enregistrer</button>
+                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg">Enregistrer</button>
                                 </form>
                             </div>
                         </div>
