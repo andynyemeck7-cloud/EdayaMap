@@ -16,36 +16,34 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: white; margin: 0; padding: 0; height: 100vh; overflow: hidden; }
         
-        .dept-path { fill: #1e293b; stroke: #334155; stroke-width: 0.6; transition: fill 0.1s; cursor: pointer; -webkit-tap-highlight-color: transparent; outline: none; }
+        /* Interactivité Fluide */
+        .dept-path { fill: #1e293b; stroke: #334155; stroke-width: 0.6; transition: fill 0.1s ease; cursor: pointer; outline: none; }
         .dept-path:hover { fill: #334155; stroke: #6366f1; stroke-width: 1.2; }
         .dept-path.has-data { fill: #1e1b4b; stroke: #6366f1; stroke-width: 0.8; }
         .dept-path.selected { fill: #4338ca; stroke: #ffffff; stroke-width: 1.5; }
         
-        .tooltip { position: fixed; pointer-events: none; background: #1e293b; color: white; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; z-index: 1000; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        /* Tooltip qui suit la souris */
+        .map-tooltip { position: fixed; pointer-events: none; background: #1e293b; color: white; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 900; z-index: 9999; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
 
         .app-container { display: flex; flex-direction: column; height: 100vh; }
         @media (min-width: 1024px) {
             .app-grid { display: grid; grid-template-columns: 1.1fr 1fr; height: calc(100vh - 70px); overflow: hidden; }
-            .sidebar-map { border-right: 1px solid rgba(255,255,255,0.05); }
+            .sidebar-map { border-right: 1px solid rgba(255,255,255,0.05); position: relative; }
         }
 
         @media (max-width: 1023px) {
             .sidebar-map { height: 45vh; flex: none; background: rgba(15, 23, 42, 0.4); }
-            .mobile-bottom-sheet {
-                position: fixed;
-                bottom: 0; left: 0; right: 0;
-                background: #0f172a;
-                border-top: 1px solid rgba(255,255,255,0.1);
-                border-top-left-radius: 2rem; border-top-right-radius: 2rem;
-                z-index: 40; height: 75vh;
-                transition: transform 0.3s ease;
-            }
+            .mobile-bottom-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0f172a; border-top: 1px solid rgba(255,255,255,0.1); border-top-left-radius: 2rem; border-top-right-radius: 2rem; z-index: 40; height: 75vh; transition: transform 0.3s ease; }
             .sheet-closed { transform: translateY(calc(75vh - 60px)); }
             .sheet-open { transform: translateY(0); }
         }
 
-        .map-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .france-svg { width: 100%; height: 100%; max-height: 90%; }
+        .map-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 20px; }
+        .france-svg { width: 100%; height: 100%; max-height: 95%; display: block; }
+        
+        /* Ajustements de centrage par pays */
+        .svg-fr { transform: translateY(-20px); }
+        .svg-be { transform: translateY(0px); }
 
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -88,7 +86,7 @@
             const [pass, setPass] = useState('');
             const [localData, setLocalData] = useState([]);
             const [selectedDept, setSelectedDept] = useState(null);
-            const [hoveredItem, setHoveredItem] = useState(null);
+            const [hoveredDept, setHoveredDept] = useState(null);
             const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
             const [filters, setFilters] = useState({ type: 'All', cat: 'All' });
             const [geoPaths, setGeoPaths] = useState([]);
@@ -128,13 +126,14 @@
                 });
             }, [step, country]);
 
+            // PROJECTIONS OPTIMISÉES PAR PAYS
             const project = useCallback((coords) => {
                 if (country === 'france') {
-                    // Projection France centrée (offsets ajustés)
+                    // Ratio "Hexagone" parfait pour la France
                     return [(coords[0] + 5.15) * 44, (51.8 - coords[1]) * 64]; 
                 }
-                // Projection Belgique Province (agrandie et recentrée)
-                return [(coords[0] - 2.5) * 125, (51.55 - coords[1]) * 195];
+                // Ratio "Horizontal" naturel pour la Belgique
+                return [(coords[0] - 2.5) * 115, (51.55 - coords[1]) * 180];
             }, [country]);
 
             const renderPath = useCallback((geometry) => {
@@ -198,8 +197,8 @@
             };
 
             if (step === 'login') return (
-                <div className="h-screen flex items-center justify-center bg-slate-950 p-4">
-                    <form onSubmit={handleLogin} className="glass p-10 rounded-[2.5rem] w-full max-w-sm text-center">
+                <div className="h-screen flex items-center justify-center bg-slate-950 p-4 text-center">
+                    <form onSubmit={handleLogin} className="glass p-10 rounded-[2.5rem] w-full max-w-sm">
                         <h1 className="text-2xl font-black italic mb-6 tracking-tighter uppercase">EDAYA MAP ACCESS</h1>
                         <input type="password" placeholder="Mot de passe" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 mb-4 text-center font-bold outline-none" value={pass} onChange={e => setPass(e.target.value)} />
                         <button type="submit" className="w-full py-4 bg-indigo-600 rounded-xl font-black uppercase tracking-widest text-sm shadow-xl">Entrer</button>
@@ -227,7 +226,7 @@
 
             return (
                 <div className="app-container" onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}>
-                    {hoveredItem && <div className="tooltip" style={{ left: mousePos.x + 15, top: mousePos.y - 15 }}>{hoveredItem.name}</div>}
+                    {hoveredDept && <div className="map-tooltip" style={{ left: mousePos.x + 15, top: mousePos.y - 15 }}>{hoveredDept}</div>}
 
                     <header className="bg-slate-900 border-b border-white/5 shadow-2xl p-3 z-50">
                         <div className="flex items-center justify-between gap-4">
@@ -235,7 +234,7 @@
                                 <button onClick={() => { setStep('menu'); setSelectedDept(null); }} className="bg-slate-800 p-2 rounded-lg flex items-center gap-1 text-[10px] font-black uppercase">
                                     <Icon name="back" /> <span className="hidden sm:inline">RETOUR</span>
                                 </button>
-                                <h1 className="font-black italic text-lg uppercase tracking-tighter">EDAYA MAP</h1>
+                                <h1 className="font-black italic text-lg lg:text-xl uppercase tracking-tighter">EDAYA MAP</h1>
                             </div>
                             
                             <div className="flex items-center gap-2">
@@ -267,12 +266,12 @@
                             </div>
                             <div className="map-wrapper">
                                 {geoPaths.length === 0 ? <div className="animate-pulse font-black text-[10px] opacity-30">Chargement...</div> : (
-                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "0 0 550 500"} className="france-svg">
+                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "0 0 550 450"} className={`france-svg ${country === 'france' ? 'svg-fr' : 'svg-be'}`}>
                                         {geoPaths.map(item => (
                                             <path key={item.id} d={renderPath(item.geometry)} 
                                                 className={`dept-path ${String(selectedDept) === String(item.id) ? 'selected' : ''} ${deptsWithData.has(String(item.id)) ? 'has-data' : ''}`}
-                                                onMouseEnter={() => setHoveredItem(item)}
-                                                onMouseLeave={() => setHoveredItem(null)}
+                                                onMouseEnter={() => setHoveredDept(item.name)}
+                                                onMouseLeave={() => setHoveredDept(null)}
                                                 onClick={() => { setSelectedDept(selectedDept === item.id ? null : item.id); if(window.innerWidth < 1024) setIsSheetOpen(true); }} />
                                         ))}
                                     </svg>
@@ -289,7 +288,7 @@
                                     <h2 className="text-xl lg:text-4xl font-black uppercase italic tracking-tighter">
                                         {selectedDept ? `Zone ${selectedDept}` : "Opportunités"}
                                     </h2>
-                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase">Voir tout</button>}
+                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase tracking-widest">Voir tout</button>}
                                 </div>
                                 <div className="grid grid-cols-1 gap-3 w-full">
                                     {filteredData.length > 0 ? filteredData.map(item => (
@@ -329,16 +328,16 @@
                                     else db.ref(`${path}/${activeEntry.fbKey}`).set(activeEntry);
                                     setModalMode(null);
                                 }} className="p-6 space-y-3">
-                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
+                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
                                     <div className="grid grid-cols-2 gap-3">
-                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
-                                        <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
+                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
+                                        <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option></select>
-                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select>
+                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option></select>
+                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select>
                                     </div>
-                                    <textarea placeholder="Notes" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
+                                    <textarea placeholder="Notes" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
                                     <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg">Enregistrer</button>
                                 </form>
                             </div>
