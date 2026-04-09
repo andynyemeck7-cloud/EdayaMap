@@ -11,15 +11,13 @@
             --brand-red: #ad3214;
             --brand-gold: #daa520;
             --brand-dark: #1a1a1a;
-            --bg-black: #0f0f0f;
-            --card-gray: #1e1e1e;
         }
-        body { background-color: var(--bg-black); color: #f4f4f4; font-family: 'Inter', sans-serif; }
+        body { background-color: #0f0f0f; color: #f4f4f4; font-family: 'Inter', sans-serif; }
         .hero-gradient {
             background: linear-gradient(135deg, var(--brand-red) 0%, #4a0e00 100%);
         }
         .card-node {
-            background: var(--card-gray);
+            background: #1e1e1e;
             border-left: 4px solid var(--brand-gold);
             transition: transform 0.3s ease, border-color 0.3s ease;
         }
@@ -29,30 +27,34 @@
         }
         .category-title { color: var(--brand-gold); text-transform: uppercase; letter-spacing: 2px; }
 
-        /* Styles spécifique pour la carte */
-        .map-section {
-            background-color: var(--card-gray);
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .belgium-province {
+        /* --- STYLES CARTE BELGIQUE AJOUTÉS --- */
+        .province {
             fill: #2a2a2a;
             stroke: #3a3a3a;
-            stroke-width: 1;
-            transition: fill 0.3s ease, stroke 0.3s ease, transform 0.2s ease;
+            stroke-width: 1.5;
+            transition: all 0.3s ease;
             cursor: pointer;
         }
-        .belgium-province:hover {
+        .province:hover {
             fill: var(--brand-red);
             stroke: var(--brand-gold);
-            transform: scale(1.02);
-            z-index: 10;
+        }
+        .map-container {
+            background: #151515;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .province-label {
-            fill: rgba(255,255,255,0.6);
-            font-size: 10px;
-            font-weight: 600;
+            fill: white;
+            font-size: 8px;
+            font-weight: 700;
             pointer-events: none;
             text-transform: uppercase;
+            opacity: 0.6;
         }
     </style>
 </head>
@@ -69,75 +71,49 @@
     </header>
 
     <main class="max-w-7xl mx-auto py-12 px-6">
-        
-        <section class="mb-16 map-section p-8 rounded-2xl shadow-inner">
-            <h2 class="category-title text-2xl font-bold mb-10 flex items-center justify-center">
-                <i class="fas fa-map-marked-alt mr-3"></i> Implantation Géographique : Belgique
+
+        <section class="mb-16">
+            <h2 class="category-title text-2xl font-bold mb-8 flex items-center">
+                <i class="fas fa-map-marked-alt mr-3"></i> Implantation Belgique
             </h2>
-            
-            <div class="flex justify-center items-center">
-                <svg viewBox="0 0 500 400" class="w-full h-auto max-w-3xl" xmlns="http://www.w3.org/2000/svg">
+            <div class="map-container shadow-inner">
+                <svg viewBox="0 0 500 400" class="w-full h-auto max-w-2xl">
+                    <path class="province" d="M20,150 L100,120 L140,170 L80,220 L20,200 Z" />
+                    <text x="45" y="185" class="province-label">Fl. Occ.</text>
                     
-                    <polygon points="10,130 90,100 130,150 70,200 10,180" class="belgium-province">
-                        <title>Flandre Occidentale</title>
-                    </polygon>
-                    <text x="50" y="160" class="province-label">Fl. Occ.</text>
+                    <path class="province" d="M100,120 L190,110 L210,160 L170,210 L140,170 Z" />
+                    <text x="145" y="160" class="province-label">Fl. Ori.</text>
+                    
+                    <path class="province" d="M190,110 L280,100 L300,140 L240,180 L210,160 Z" />
+                    <text x="235" y="135" class="province-label">Anvers</text>
+                    
+                    <path class="province" d="M280,100 L360,110 L340,200 L300,140 Z" />
+                    <text x="310" y="145" class="province-label">Limb.</text>
+                    
+                    <path class="province" d="M210,160 L240,180 L300,140 L340,200 L310,230 L250,210 L210,160" />
+                    <text x="260" y="195" class="province-label">Br. Fl.</text>
 
-                    <polygon points="90,100 180,90 200,140 160,190 130,150" class="belgium-province">
-                        <title>Flandre Orientale</title>
-                    </polygon>
-                    <text x="140" y="145" class="province-label">Fl. Ori.</text>
-
-                    <polygon points="180,90 270,80 290,120 230,160 200,140" class="belgium-province">
-                        <title>Anvers</title>
-                    </polygon>
-                    <text x="230" y="125" class="province-label">Anvers</text>
-
-                    <polygon points="270,80 350,90 330,180 290,120" class="belgium-province">
-                        <title>Limbourg</title>
-                    </polygon>
-                    <text x="305" y="135" class="province-label">Limb.</text>
-
-                    <polygon points="200,140 230,160 290,120 330,180 300,210 240,190 200,140" class="belgium-province">
-                        <title>Brabant Flamand</title>
-                    </polygon>
-                    <text x="250" y="175" class="province-label">Br. Fl.</text>
-
-                    <circle cx="245" cy="165" r="15" fill="#4a0e00" stroke="#daa520" stroke-width="2" class="cursor-pointer hover:fill-[#ad3214]">
-                        <title>Région de Bruxelles-Capitale</title>
-                    </circle>
-                    <text x="245" y="168" class="province-label" fill="#daa520" font-weight="900" font-size="12" text-anchor="middle">BXL</text>
-
-                    <polygon points="70,200 160,190 200,140 240,190 210,240 100,260 70,200" class="belgium-province">
-                        <title>Hainaut</title>
-                    </polygon>
-                    <text x="130" y="235" class="province-label">Hainaut</text>
-
-                    <polygon points="210,240 240,190 300,210 320,250 280,270 210,240" class="belgium-province">
-                        <title>Brabant Wallon</title>
-                    </polygon>
-                    <text x="260" y="240" class="province-label">Br. Wal.</text>
-
-                    <polygon points="210,240 280,270 320,250 350,290 320,350 240,320 210,240" class="belgium-province">
-                        <title>Namur</title>
-                    </polygon>
-                    <text x="280" y="310" class="province-label">Namur</text>
-
-                    <polygon points="320,250 350,290 450,230 430,160 350,90 330,180 300,210 320,250" class="belgium-province">
-                        <title>Liège</title>
-                    </polygon>
-                    <text x="390" y="210" class="province-label">Liège</text>
-
-                    <polygon points="320,350 350,290 450,230 490,320 400,390 320,350" class="belgium-province">
-                        <title>Luxembourg</title>
-                    </polygon>
-                    <text x="410" y="320" class="province-label">Lux.</text>
-
+                    <circle cx="255" cy="185" r="12" class="province" style="fill: var(--brand-gold);" />
+                    <text x="255" y="188" class="province-label" style="fill: black; font-size: 6px;" text-anchor="middle">BXL</text>
+                    
+                    <path class="province" d="M80,220 L170,210 L210,160 L250,210 L220,260 L110,280 L80,220" />
+                    <text x="130" y="255" class="province-label">Hainaut</text>
+                    
+                    <path class="province" d="M220,260 L250,210 L310,230 L330,270 L290,290 L220,260" />
+                    <text x="265" y="265" class="province-label">Br. Wal.</text>
+                    
+                    <path class="province" d="M330,270 L360,310 L460,250 L440,180 L360,110 L340,200 L310,230 L330,270" />
+                    <text x="390" y="220" class="province-label">Liège</text>
+                    
+                    <path class="province" d="M220,260 L290,290 L330,270 L360,310 L330,370 L250,340 L220,260" />
+                    <text x="285" y="330" class="province-label">Namur</text>
+                    
+                    <path class="province" d="M330,370 L360,310 L460,250 L500,340 L410,410 L330,370" />
+                    <text x="410" y="345" class="province-label">Lux.</text>
                 </svg>
             </div>
-            <p class="text-center text-sm opacity-50 mt-6 italic">Cliquez sur une province pour découvrir l'implantation locale (fonctionnalité à venir).</p>
         </section>
-
+        
         <section class="mb-16">
             <h2 class="category-title text-2xl font-bold mb-8 flex items-center">
                 <i class="fas fa-broadcast-tower mr-3"></i> Rayonnement Radio & TV
