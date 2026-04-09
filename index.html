@@ -16,10 +16,15 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: white; margin: 0; padding: 0; height: 100vh; overflow: hidden; }
         
+        /* Styles Communs aux Cartes */
         .dept-path { fill: #1e293b; stroke: #334155; stroke-width: 0.6; transition: all 0.2s; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+        .dept-path:hover { fill: #334155; stroke: #6366f1; }
         .dept-path.has-data { fill: #1e1b4b; stroke: #6366f1; stroke-width: 0.8; }
         .dept-path.selected { fill: #4338ca; stroke: #ffffff; stroke-width: 1.5; }
         
+        /* Styles Spécifiques Belgique (Inspirés de l'Image PNG) */
+        .province-label { fill: rgba(255,255,255,0.6); font-size: 8px; font-weight: 700; pointer-events: none; text-transform: uppercase; text-anchor: middle; }
+
         /* Layout Principal */
         .app-container { display: flex; flex-direction: column; height: 100vh; }
 
@@ -28,7 +33,7 @@
             .sidebar-map { border-right: 1px solid rgba(255,255,255,0.05); }
         }
 
-        /* Mobile : Map centrée et plus grande */
+        /* Mobile : Map centrée et Bottom Sheet */
         @media (max-width: 1023px) {
             .sidebar-map { height: 45vh; flex: none; background: rgba(15, 23, 42, 0.4); }
             .mobile-bottom-sheet {
@@ -45,13 +50,9 @@
             .sheet-open { transform: translateY(0); }
         }
 
-        /* Correction France : Nord/Sud et Centrage */
-        .map-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 10px; }
-        
-        /* Ajustement pour que la France ne soit pas coupée au sud et que la Belgique soit centrée */
-        .france-svg { width: 100%; height: auto; max-height: 98%; }
-        .france-svg.fr-view { transform: translateY(-35px); }
-        .france-svg.be-view { transform: translateY(0px); }
+        /* Centrage et Calibration de la Map */
+        .map-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px; position: relative; cursor: crosshair; }
+        .france-svg { width: 100%; height: auto; max-height: 95%; transform: translateY(-30px); filter: drop-shadow(0 0 20px rgba(0,0,0,0.3)); }
 
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -121,31 +122,33 @@
             }, [step, country]);
 
             useEffect(() => {
-                if (step !== 'map') return;
-                const url = country === 'france' 
-                    ? 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson'
-                    : 'https://raw.githubusercontent.com/codeforgermany/click_that_hood/master/public/data/belgium.geojson';
+                if (step !== 'map' || country !== 'france') return;
+                // GeoJSON France (Sud de la France remonté)
+                const url = 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson';
                 fetch(url).then(res => res.json()).then(data => {
                     setGeoPaths(data.features.map(f => ({ 
-                        id: country === 'france' ? f.properties.code : f.properties.name, 
-                        name: f.properties.nom || f.properties.name, geometry: f.geometry 
+                        id: f.properties.code, name: f.properties.nom, geometry: f.geometry 
                     })));
                 });
             }, [step, country]);
 
-            // CALCULS DE PROJECTION AMÉLIORÉS
+            // Projection Calibrée pour France et Belgique (Même Taille, Centré)
             const project = (coords) => {
                 if (country === 'france') {
-                    // France : décalée vers le haut pour ne pas couper le sud
-                    return [(coords[0] + 5.15) * 44, (52.6 - coords[1]) * 64]; 
+                    // France : ProjectionGeoJSON, remonté pour ne pas couper le Sud
+                    return [(coords[0] + 5.15) * 55, (52.25 - coords[1]) * 78]; 
                 }
-                // Belgique : Agrandie et centrée par rapport au viewBox 550x500
-                return [(coords[0] - 2.5) * 138, (51.6 - coords[1]) * 215];
+                // Belgique Vectorielle : Pas de projection, utilise coordonnées SVG directes
+                return coords;
             };
 
             const renderPath = (geometry) => {
-                const polys = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
-                return polys.map(poly => `M ${poly[0].map(c => project(c).join(",")).join(" L ")} Z`).join(" ");
+                if (country === 'france') {
+                    const polys = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+                    return polys.map(poly => `M ${poly[0].map(c => project(c).join(",")).join(" L ")} Z`).join(" ");
+                }
+                // Belgique utilise déjà des points SVG directs
+                return geometry; 
             };
 
             const filteredData = useMemo(() => {
@@ -216,8 +219,8 @@
                 <div className="h-screen flex items-center justify-center bg-slate-950 p-4">
                     <form onSubmit={handleLogin} className="glass p-10 rounded-[2.5rem] w-full max-w-sm text-center">
                         <h1 className="text-2xl font-black italic mb-6 tracking-tighter uppercase">EDAYA MAP ACCESS</h1>
-                        <input type="password" placeholder="Mot de passe" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 mb-4 text-center font-bold outline-none" value={pass} onChange={e => setPass(e.target.value)} />
-                        <button type="submit" className="w-full py-4 bg-indigo-600 rounded-xl font-black uppercase tracking-widest text-sm shadow-xl">Entrer</button>
+                        <input type="password" placeholder="Mot de passe" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 mb-4 text-center font-bold outline-none shadow-inner" value={pass} onChange={e => setPass(e.target.value)} />
+                        <button type="submit" className="w-full py-4 bg-indigo-600 rounded-xl font-black uppercase tracking-widest text-sm shadow-xl hover:bg-indigo-500 transition-colors">Entrer</button>
                     </form>
                 </div>
             );
@@ -227,12 +230,12 @@
                     <div className="w-full max-w-md">
                         <h2 className="text-3xl font-black mb-8 uppercase tracking-tighter italic">ZONE DE PROSPECTION</h2>
                         <div className="grid grid-cols-1 gap-4">
-                            <button onClick={() => { setCountry('france'); setStep('map'); }} className="glass p-12 rounded-3xl hover:bg-indigo-600 transition-all border border-white/5">
-                                <span className="text-5xl mb-2 block">🇫🇷</span>
+                            <button onClick={() => { setCountry('france'); setStep('map'); }} className="glass p-12 rounded-3xl hover:bg-indigo-600 transition-all border border-white/5 group">
+                                <span className="text-5xl mb-2 block group-hover:scale-110 transition-transform">🇫🇷</span>
                                 <h3 className="font-black uppercase tracking-tighter text-xl">FRANCE</h3>
                             </button>
-                            <button onClick={() => { setCountry('belgium'); setStep('map'); }} className="glass p-12 rounded-3xl hover:bg-indigo-600 transition-all border border-white/5">
-                                <span className="text-5xl mb-2 block">🇧🇪</span>
+                            <button onClick={() => { setCountry('belgium'); setStep('map'); }} className="glass p-12 rounded-3xl hover:bg-indigo-600 transition-all border border-white/5 group">
+                                <span className="text-5xl mb-2 block group-hover:scale-110 transition-transform">🇧🇪</span>
                                 <h3 className="font-black uppercase tracking-tighter text-xl">BELGIQUE</h3>
                             </button>
                         </div>
@@ -243,112 +246,148 @@
             return (
                 <div className="app-container">
                     <header className="bg-slate-900 border-b border-white/5 shadow-2xl p-3 z-50">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+                            <div className="flex items-center justify-between w-full sm:w-auto gap-4">
                                 <button onClick={() => { setStep('menu'); setSelectedDept(null); }} className="bg-slate-800 p-2 rounded-lg flex items-center gap-1 text-[10px] font-black uppercase">
                                     <Icon name="back" /> <span className="hidden sm:inline">RETOUR</span>
                                 </button>
-                                <h1 className="font-black italic text-lg uppercase tracking-tighter">EDAYA MAP</h1>
+                                <h1 className="font-black italic text-lg lg:text-xl uppercase tracking-tighter">EDAYA MAP</h1>
+                                <button onClick={() => { setModalMode('add'); setActiveEntry({ name: '', city: '', dept: '', type: 'Lieu', cat: 'Accessible', address: '' }); }} className="sm:hidden bg-indigo-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20"><Icon name="plus" /></button>
                             </div>
                             
                             <div className="header-scroll flex items-center gap-2 flex-1 justify-end">
                                 <button onClick={() => { setModalMode('add'); setActiveEntry({ name: '', city: '', dept: '', type: 'Lieu', cat: 'Accessible', address: '' }); }} className="bg-indigo-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black shadow-lg shadow-indigo-500/20">
-                                    <Icon name="plus" /> <span>AJOUTER</span>
+                                    <Icon name="plus" /> AJOUTER
                                 </button>
-                                <button onClick={() => fileInputRef.current.click()} className="bg-slate-700 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black">
-                                    <Icon name="upload" /> <span className="hidden sm:inline">IMPORTER CSV</span><span className="sm:hidden">IMPORT</span>
+                                <button onClick={() => fileInputRef.current.click()} className="bg-slate-700 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black flex-shrink-0">
+                                    <Icon name="upload" /> IMPORTER CSV
                                 </button>
                                 <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImport} />
-                                <button onClick={handleExport} className="bg-emerald-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black">
-                                    <Icon name="download" /> <span className="hidden sm:inline">EXPORTER CSV</span><span className="sm:hidden">EXPORT</span>
+                                <button onClick={handleExport} className="bg-emerald-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black flex-shrink-0">
+                                    <Icon name="download" /> EXPORTER CSV
                                 </button>
                             </div>
                         </div>
                     </header>
 
-                    <div className="app-grid">
-                        {/* CARTE */}
+                    <div className="app-grid flex-grow relative overflow-hidden">
+                        {/* SIDEBAR / CARTE */}
                         <div className="sidebar-map flex flex-col overflow-hidden">
                             <div className="p-3 bg-slate-900/40 border-b border-white/5">
                                 <div className="grid grid-cols-2 gap-2">
-                                    <select onChange={(e) => { setFilters(p => ({ ...p, type: e.target.value })); setSelectedDept(null); }} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black outline-none border border-white/10 text-white">
+                                    <select onChange={(e) => { setFilters(p => ({ ...p, type: e.target.value })); setSelectedDept(null); }} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black outline-none border border-white/10 text-white cursor-pointer shadow-inner">
                                         <option value="All">TOUT TYPE</option><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option>
                                     </select>
-                                    <select onChange={(e) => { setFilters(p => ({ ...p, cat: e.target.value })); setSelectedDept(null); }} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black outline-none border border-white/10 text-white">
+                                    <select onChange={(e) => { setFilters(p => ({ ...p, cat: e.target.value })); setSelectedDept(null); }} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black outline-none border border-white/10 text-white cursor-pointer shadow-inner">
                                         <option value="All">STATUT</option><option>Accessible</option><option>Plus tard</option>
                                     </select>
                                 </div>
                             </div>
-                            <div className="map-wrapper">
-                                {geoPaths.length === 0 ? <div className="animate-pulse font-black text-[10px] opacity-30">Chargement...</div> : (
-                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "0 0 550 500"} className={`france-svg ${country === 'france' ? 'fr-view' : 'be-view'}`}>
-                                        {geoPaths.map(dept => (
+                            <div className="map-wrapper" onClick={() => setSelectedDept(null)}>
+                                {(country === 'france' && geoPaths.length === 0) ? <div className="animate-pulse font-black text-[10px] opacity-30">Chargement carte...</div> : (
+                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "0 0 600 650"} className="france-svg">
+                                        {country === 'france' ? geoPaths.map(dept => (
                                             <path key={dept.id} d={renderPath(dept.geometry)} 
                                                 className={`dept-path ${String(selectedDept) === String(dept.id) ? 'selected' : ''} ${deptsWithData.has(String(dept.id)) ? 'has-data' : ''}`}
-                                                onClick={() => { setSelectedDept(selectedDept === dept.id ? null : dept.id); if(window.innerWidth < 1024) setIsSheetOpen(true); }} />
-                                        ))}
+                                                onClick={(e) => { e.stopPropagation(); setSelectedDept(selectedDept === dept.id ? null : dept.id); if(window.innerWidth < 1024) setIsSheetOpen(true); }} />
+                                        )) : (
+                                            // BELGIQUE VECTORIELLE (Basé sur image PNG)
+                                            <g onClick={(e) => e.stopPropagation()}>
+                                                {/* Flandre Occidentale */}
+                                                <path d="M 50,150 L 120,120 L 160,170 L 100,220 L 40,200 Z" className={`dept-path ${selectedDept === 'Flandre Occidentale' ? 'selected' : ''}`} onClick={() => setSelectedDept('Flandre Occidentale')} />
+                                                <text x="80" y="180" class="province-label">Fl. Occ.</text>
+                                                {/* Flandre Orientale */}
+                                                <path d="M 120,120 L 210,110 L 230,160 L 190,210 L 160,170 Z" className={`dept-path ${selectedDept === 'Flandre Orientale' ? 'selected' : ''}`} onClick={() => setSelectedDept('Flandre Orientale')} />
+                                                <text x="170" y="165" class="province-label">Fl. Ori.</text>
+                                                {/* Anvers */}
+                                                <path d="M 210,110 L 300,100 L 320,140 L 260,180 L 230,160 Z" className={`dept-path ${selectedDept === 'Anvers' ? 'selected' : ''}`} onClick={() => setSelectedDept('Anvers')} />
+                                                <text x="260" y="145" class="province-label">Anvers</text>
+                                                {/* Limbourg */}
+                                                <path d="M 300,100 L 380,110 L 360,200 L 320,140 Z" className={`dept-path ${selectedDept === 'Limbourg' ? 'selected' : ''}`} onClick={() => setSelectedDept('Limbourg')} />
+                                                <text x="335" y="155" class="province-label">Limb.</text>
+                                                {/* Brabant Flamand (autour de Bruxelles) */}
+                                                <path d="M 230,160 L 260,180 L 320,140 L 360,200 L 330,230 L 270,210 L 230,160" className={`dept-path ${selectedDept === 'Brabant Flamand' ? 'selected' : ''}`} onClick={() => setSelectedDept('Brabant Flamand')} />
+                                                <text x="280" y="195" class="province-label">Br. Fl.</text>
+                                                {/* Bruxelles-Capitale (centre) */}
+                                                <circle cx="275" cy="185" r="15" fill="#ad3214" stroke="#daa520" stroke-width="2" className="cursor-pointer" onClick={() => setSelectedDept('Bruxelles')} />
+                                                <text x="275" y="188" class="province-label" fill="#daa520">BXL</text>
+                                                {/* Hainaut */}
+                                                <path d="M 100,220 L 190,210 L 230,160 L 270,210 L 240,260 L 130,280 L 100,220 Z" className={`dept-path ${selectedDept === 'Hainaut' ? 'selected' : ''}`} onClick={() => setSelectedDept('Hainaut')} />
+                                                <text x="160" y="255" class="province-label">Hainaut</text>
+                                                {/* Brabant Wallon */}
+                                                <path d="M 240,260 L 270,210 L 330,230 L 350,270 L 310,290 L 240,260 Z" className={`dept-path ${selectedDept === 'Brabant Wallon' ? 'selected' : ''}`} onClick={() => setSelectedDept('Brabant Wallon')} />
+                                                <text x="290" y="260" class="province-label">Br. Wal.</text>
+                                                {/* Liège */}
+                                                <path d="M 350,270 L 380,310 L 480,250 L 460,180 L 380,110 L 360,200 L 330,230 L 350,270 Z" className={`dept-path ${selectedDept === 'Liège' ? 'selected' : ''}`} onClick={() => setSelectedDept('Liège')} />
+                                                <text x="420" y="230" class="province-label">Liège</text>
+                                                {/* Namur */}
+                                                <path d="M 240,260 L 310,290 L 350,270 L 380,310 L 350,370 L 270,340 L 240,260 Z" className={`dept-path ${selectedDept === 'Namur' ? 'selected' : ''}`} onClick={() => setSelectedDept('Namur')} />
+                                                <text x="310" y="330" class="province-label">Namur</text>
+                                                {/* Luxembourg */}
+                                                <path d="M 350,370 L 380,310 L 480,250 L 520,340 L 430,410 L 350,370 Z" className={`dept-path ${selectedDept === 'Luxembourg' ? 'selected' : ''}`} onClick={() => setSelectedDept('Luxembourg')} />
+                                                <text x="440" y="340" class="province-label">Lux.</text>
+                                            </g>
+                                        )}
                                     </svg>
                                 )}
                             </div>
                         </div>
 
-                        {/* LISTE */}
-                        <div className={`content-scroll mobile-bottom-sheet ${isSheetOpen ? 'sheet-open' : 'sheet-closed'} lg:translate-y-0 flex flex-col overflow-hidden bg-slate-950 border-t lg:border-t-0 border-white/5`}>
+                        {/* LISTE OPPORTUNITÉS */}
+                        <div className={`content-scroll mobile-bottom-sheet ${isSheetOpen ? 'sheet-open' : 'sheet-closed'} lg:translate-y-0 flex flex-col overflow-hidden bg-slate-950 p-0 lg:p-8 border-t lg:border-t-0 border-white/5`}>
                             <div className="p-3 flex items-center justify-center lg:hidden" onClick={() => setIsSheetOpen(!isSheetOpen)}>
                                 <div className="w-10 h-1 bg-slate-700 rounded-full"></div>
                             </div>
                             
-                            <div className="p-4 lg:p-8 flex-grow overflow-y-auto custom-scrollbar">
-                                <div className="flex justify-between items-end mb-6 border-b-2 border-indigo-600 pb-2">
-                                    <h2 className="text-xl lg:text-4xl font-black uppercase italic tracking-tighter">
-                                        {selectedDept ? `Zone ${selectedDept}` : "Opportunités"}
-                                    </h2>
-                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase tracking-widest hover:bg-white/20">Voir tout</button>}
-                                </div>
-                                
-                                <div className="grid grid-cols-1 gap-3 w-full">
-                                    {filteredData.length > 0 ? filteredData.map(item => (
-                                        <div key={item.fbKey} className="glass p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all w-full">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex-1 min-w-0 pr-4">
-                                                    <h4 className="font-black uppercase truncate text-sm lg:text-lg">{item.name}</h4>
-                                                    <div className="flex flex-wrap gap-2 mt-1">
-                                                        <span className="text-[9px] font-bold text-slate-400 uppercase bg-white/5 px-2 py-0.5 rounded-md">{item.city} ({item.dept})</span>
-                                                        <span className="text-[9px] font-black px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-md border border-indigo-500/30 uppercase">{item.type}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => { setModalMode('edit'); setActiveEntry(item); }} className="p-2 text-indigo-400 hover:bg-white/5 rounded-lg"><Icon name="edit" /></button>
-                                                    <button onClick={() => deleteEntry(item.fbKey)} className="p-2 text-red-500/70 hover:bg-red-500/10 rounded-lg"><Icon name="trash" /></button>
+                            <div className="p-4 lg:p-0 flex justify-between items-end mb-4 lg:mb-6 lg:border-b-2 lg:border-indigo-600 pb-1 lg:pb-2">
+                                <h2 className="text-xl lg:text-4xl font-black uppercase italic tracking-tighter">
+                                    {selectedDept ? `Zone ${selectedDept}` : "Opportunités"}
+                                </h2>
+                                {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[8px] lg:text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase tracking-widest hover:bg-white/20 transition-all">Voir tout</button>}
+                            </div>
+
+                            <div className="flex-grow overflow-y-auto custom-scrollbar space-y-3 p-4 lg:p-0 pb-12">
+                                {filteredData.length > 0 ? filteredData.map(item => (
+                                    <div key={item.fbKey} className="glass p-4 rounded-2xl animate-in border border-white/5 hover:border-indigo-500/30 transition-all shadow-lg">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1 min-w-0 pr-2">
+                                                <h4 className="font-black uppercase truncate text-sm lg:text-lg">{item.name}</h4>
+                                                <div className="flex flex-wrap gap-2 mt-1">
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase bg-white/5 px-2 py-0.5 rounded-md">{item.city} ({item.dept})</span>
+                                                    <span className="text-[9px] font-black px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-md uppercase border border-indigo-500/30 uppercase">{item.type}</span>
                                                 </div>
                                             </div>
-                                            <p className="text-[10px] lg:text-xs text-slate-400 mt-2 italic">{item.address || "..."}</p>
+                                            <div className="flex gap-1 flex-shrink-0">
+                                                <button onClick={() => { setModalMode('edit'); setActiveEntry(item); }} className="p-1.5 text-indigo-400 hover:bg-white/10 rounded-lg transition-colors"><Icon name="edit" /></button>
+                                                <button onClick={() => deleteEntry(item.fbKey)} className="p-1.5 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"><Icon name="trash" /></button>
+                                            </div>
                                         </div>
-                                    )) : <div className="text-center py-20 opacity-20 font-black text-[10px] uppercase">Aucun résultat</div>}
-                                </div>
+                                        <p className="text-[10px] lg:text-xs text-slate-400 mt-2 italic line-clamp-2">{item.address || "..."}</p>
+                                    </div>
+                                )) : <div className="text-center py-20 opacity-20 text-[10px] font-black uppercase tracking-widest italic">Aucun résultat</div>}
                             </div>
                         </div>
                     </div>
 
                     {modalMode && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-                            <div className="glass w-full max-w-md rounded-[2.5rem] overflow-hidden">
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+                            <div className="glass w-full max-w-md rounded-[2rem] overflow-hidden animate-in shadow-2xl">
                                 <div className="bg-slate-900 p-6 flex justify-between items-center border-b border-white/5">
                                     <h3 className="font-black uppercase text-sm italic tracking-tighter">{modalMode === 'add' ? 'Ajouter' : 'Modifier'}</h3>
-                                    <button onClick={() => setModalMode(null)} className="p-2"><Icon name="x" /></button>
+                                    <button onClick={() => setModalMode(null)} className="p-2 text-slate-400 hover:text-white"><Icon name="x" /></button>
                                 </div>
                                 <form onSubmit={saveEntry} className="p-6 space-y-3">
-                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
+                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500 transition-colors" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
                                     <div className="grid grid-cols-2 gap-3">
-                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
-                                        <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
+                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
+                                        <input required placeholder="Zone (Province ou CP)" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option></select>
                                         <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select>
                                     </div>
-                                    <textarea placeholder="Notes / Adresse" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
-                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg">Enregistrer</button>
+                                    <textarea placeholder="Notes / Adresse" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
+                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-indigo-500 transition-all">Enregistrer</button>
                                 </form>
                             </div>
                         </div>
