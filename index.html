@@ -73,10 +73,10 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Listes des types selon le pays
+        // LISTES DES FILTRES PAR PAYS (Modifiées selon tes instructions)
         const FILTERS_BY_COUNTRY = {
-            france: ["Lieu", "Festival", "Booker", "Media Spé"],
-            belgium: ["Lieu", "Festival", "Booker", "Media Spé", "DJ", "Management", "Booking", "Marques", "Radio"]
+            france: ["Lieu", "Festival", "Booker", "Media Spé", "Radio"],
+            belgium: ["Lieu", "Festival", "Booking", "Media Spé", "DJ", "Management", "Marques", "Radio"]
         };
 
         const Icon = ({ name }) => {
@@ -169,7 +169,6 @@
                 return visibleSet;
             }, [localData, filters]);
 
-            // NOUVELLE FONCTION IMPORT : EXCEL (.xlsx) ET CSV
             const handleImport = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -178,16 +177,12 @@
                 reader.onload = async (event) => {
                     let allData = [];
                     const data = event.target.result;
-
                     try {
                         if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-                            // Lecture du fichier Excel binaire
                             const workbook = XLSX.read(data, { type: 'binary' });
                             const sheetName = workbook.SheetNames[0];
                             const sheet = workbook.Sheets[sheetName];
                             const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                            
-                            // On saute la ligne d'en-tête (index 0)
                             allData = rows.slice(1).map(parts => ({
                                 name: parts[0] || "",
                                 city: parts[1] || "",
@@ -199,7 +194,6 @@
                                 address: parts[7] || ""
                             })).filter(i => i.name);
                         } else {
-                            // Lecture CSV classique
                             const content = data;
                             const lines = content.split(/\r?\n/).filter(l => l.trim());
                             const sep = content.includes(';') ? ';' : ',';
@@ -375,13 +369,13 @@
                                         <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}>
+                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}>
                                             {FILTERS_BY_COUNTRY[country].map(t => <option key={t}>{t}</option>)}
                                         </select>
-                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select>
+                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select>
                                     </div>
-                                    <textarea placeholder="Notes" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
-                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg">Enregistrer</button>
+                                    <textarea placeholder="Notes / Adresse" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500 transition-colors" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
+                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-indigo-500 transition-all">Enregistrer</button>
                                 </form>
                             </div>
                         </div>
