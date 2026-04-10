@@ -130,8 +130,10 @@
 
             const project = useCallback((coords) => {
                 if (country === 'france') {
+                    // Projection France centrée (offsets ajustés)
                     return [(coords[0] + 5.15) * 44, (51.8 - coords[1]) * 64]; 
                 }
+                // Projection Belgique Province (agrandie et recentrée)
                 return [(coords[0] - 2.5) * 125, (51.55 - coords[1]) * 195];
             }, [country]);
 
@@ -196,8 +198,8 @@
             };
 
             if (step === 'login') return (
-                <div className="h-screen flex items-center justify-center bg-slate-950 p-4 text-center">
-                    <form onSubmit={handleLogin} className="glass p-10 rounded-[2.5rem] w-full max-w-sm">
+                <div className="h-screen flex items-center justify-center bg-slate-950 p-4">
+                    <form onSubmit={handleLogin} className="glass p-10 rounded-[2.5rem] w-full max-w-sm text-center">
                         <h1 className="text-2xl font-black italic mb-6 tracking-tighter uppercase">EDAYA MAP ACCESS</h1>
                         <input type="password" placeholder="Mot de passe" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 mb-4 text-center font-bold outline-none" value={pass} onChange={e => setPass(e.target.value)} />
                         <button type="submit" className="w-full py-4 bg-indigo-600 rounded-xl font-black uppercase tracking-widest text-sm shadow-xl">Entrer</button>
@@ -256,16 +258,7 @@
                             <div className="p-3 bg-slate-900/40 border-b border-white/5">
                                 <div className="grid grid-cols-2 gap-2">
                                     <select onChange={(e) => { setFilters(p => ({ ...p, type: e.target.value })); setSelectedDept(null); }} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black outline-none border border-white/10 text-white">
-                                        <option value="All">TOUT TYPE</option>
-                                        <option>Lieu</option>
-                                        <option>Festival</option>
-                                        <option>Booker</option>
-                                        <option>Media Spé</option>
-                                        <option>DJ</option>
-                                        <option>Management</option>
-                                        <option>Booking</option>
-                                        <option>Marques</option>
-                                        <option>Radio</option>
+                                        <option value="All">TOUT TYPE</option><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option>
                                     </select>
                                     <select onChange={(e) => { setFilters(p => ({ ...p, cat: e.target.value })); setSelectedDept(null); }} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black outline-none border border-white/10 text-white">
                                         <option value="All">STATUT</option><option>Accessible</option><option>Plus tard</option>
@@ -296,11 +289,11 @@
                                     <h2 className="text-xl lg:text-4xl font-black uppercase italic tracking-tighter">
                                         {selectedDept ? `Zone ${selectedDept}` : "Opportunités"}
                                     </h2>
-                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase hover:bg-white/20">Voir tout</button>}
+                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase">Voir tout</button>}
                                 </div>
                                 <div className="grid grid-cols-1 gap-3 w-full">
                                     {filteredData.length > 0 ? filteredData.map(item => (
-                                        <div key={item.fbKey} className="glass p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all w-full shadow-lg">
+                                        <div key={item.fbKey} className="glass p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all w-full">
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1 min-w-0 pr-4">
                                                     <h4 className="font-black uppercase truncate text-sm lg:text-lg">{item.name}</h4>
@@ -327,7 +320,7 @@
                             <div className="glass w-full max-w-md rounded-[2.5rem] overflow-hidden">
                                 <div className="bg-slate-900 p-6 flex justify-between items-center border-b border-white/5">
                                     <h3 className="font-black uppercase text-sm italic tracking-tighter">{modalMode === 'add' ? 'Ajouter' : 'Modifier'}</h3>
-                                    <button onClick={() => setModalMode(null)} className="p-2 text-slate-400 hover:text-white"><Icon name="x" /></button>
+                                    <button onClick={() => setModalMode(null)} className="p-2"><Icon name="x" /></button>
                                 </div>
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
@@ -336,27 +329,17 @@
                                     else db.ref(`${path}/${activeEntry.fbKey}`).set(activeEntry);
                                     setModalMode(null);
                                 }} className="p-6 space-y-3">
-                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500 transition-colors" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
+                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
                                     <div className="grid grid-cols-2 gap-3">
-                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
-                                        <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
+                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
+                                        <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}>
-                                            <option>Lieu</option>
-                                            <option>Festival</option>
-                                            <option>Booker</option>
-                                            <option>Media Spé</option>
-                                            <option>DJ</option>
-                                            <option>Management</option>
-                                            <option>Booking</option>
-                                            <option>Marques</option>
-                                            <option>Radio</option>
-                                        </select>
-                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select>
+                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}><option>Lieu</option><option>Festival</option><option>Booker</option><option>Media Spé</option></select>
+                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select>
                                     </div>
-                                    <textarea placeholder="Notes / Adresse" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
-                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-indigo-500 transition-all">Enregistrer</button>
+                                    <textarea placeholder="Notes" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
+                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg">Enregistrer</button>
                                 </form>
                             </div>
                         </div>
