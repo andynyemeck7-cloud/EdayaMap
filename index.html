@@ -140,7 +140,7 @@
                 if (country === 'france') {
                     return [(coords[0] + 5.15) * 44, (51.8 - coords[1]) * 64]; 
                 }
-                return [(coords[0] - 2.5) * 155, (51.55 - coords[1]) * 155];
+                return [(coords[0] - 2.3) * 145, (51.6 - coords[1]) * 145];
             }, [country]);
 
             const renderPath = useCallback((geometry) => {
@@ -301,7 +301,7 @@
                             </div>
                             <div className="map-wrapper">
                                 {geoPaths.length === 0 ? <div className="animate-pulse font-black text-[10px] opacity-30">Chargement...</div> : (
-                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "-10 -10 520 320"} className="france-svg">
+                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "-20 -5 580 310"} className="france-svg">
                                         {geoPaths.map(item => (
                                             <path key={item.id} d={renderPath(item.geometry)} 
                                                 className={`dept-path ${String(selectedDept) === String(item.id) ? 'selected' : ''} ${deptsWithData.has(String(item.id)) ? 'has-data' : ''}`}
