@@ -73,10 +73,10 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // LISTES DES FILTRES PAR PAYS (Conservées telles quelles)
+        // LISTES DES FILTRES PAR PAYS (Modifiées selon tes instructions)
         const FILTERS_BY_COUNTRY = {
-            france: ["Lieu", "Festival", "Booker", "Media Spé"],
-            belgium: ["Lieu", "Festival", "Booking", "Media Spé", "DJ", "Management", "Booking", "Marques", "Radio"]
+            france: ["Lieu", "Festival", "Booker", "Media Spé", "Radio"],
+            belgium: ["Lieu", "Festival", "Booking", "Media Spé", "DJ", "Management", "Marques", "Radio"]
         };
 
         const Icon = ({ name }) => {
@@ -124,30 +124,23 @@
 
             useEffect(() => {
                 if (step !== 'map') return;
-                // CORRECTION SOURCE : Utilisation d'un GeoJSON fiable incluant les provinces + Bruxelles
                 const url = country === 'france' 
                     ? 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson'
-                    : 'https://raw.githubusercontent.com/justinelliotmeyers/Belgium_GeoJSON/master/belgium_provinces.geojson';
-                
+                    : 'https://raw.githubusercontent.com/mathiasleroy/Belgium-Geographic-Data/master/dist/polygons/geojson/Belgium.provinces.WGS84.geojson';
                 fetch(url).then(res => res.json()).then(data => {
-                    setGeoPaths(data.features.map(f => {
-                        const props = f.properties;
-                        // Normalisation des IDs et Noms pour gérer Bruxelles (NAME_1 dans cette source)
-                        const id = country === 'france' ? props.code : (props.NAME_1 || props.name || props.Name_FR);
-                        const name = props.nom || props.NAME_1 || props.name || props.Name_FR;
-                        return { id, name, geometry: f.geometry };
-                    }));
+                    setGeoPaths(data.features.map(f => ({ 
+                        id: country === 'france' ? f.properties.code : (f.properties.NameFRE || f.properties.name_fr || f.properties.name), 
+                        name: f.properties.nom || f.properties.NameFRE || f.properties.name_fr || f.properties.name, 
+                        geometry: f.geometry 
+                    })));
                 });
             }, [step, country]);
 
-            // CORRECTION PROJECTION : Centrer, réduire la taille et inclure l'Est pour la Belgique
             const project = useCallback((coords) => {
                 if (country === 'france') {
                     return [(coords[0] + 5.15) * 44, (51.8 - coords[1]) * 64]; 
                 }
-                // BELGIQUE : Nouvelle projection ajustée pour dézoomer et centrer
-                // Ratio et offsets optimisés pour que l'Est ne soit plus coupé
-                return [(coords[0] - 1.22) * 85, (52.6 - coords[1]) * 120];
+                return [(coords[0] - 2.3) * 145, (51.6 - coords[1]) * 145];
             }, [country]);
 
             const renderPath = useCallback((geometry) => {
@@ -186,32 +179,27 @@
                     const data = event.target.result;
                     try {
                         if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-                            // Lecture du fichier Excel binaire
                             const workbook = XLSX.read(data, { type: 'binary' });
                             const sheetName = workbook.SheetNames[0];
                             const sheet = workbook.Sheets[sheetName];
                             const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                            
-                            // Conversion des lignes Excel en objets d'opportunité
-                            // Supposant l'ordre : ID (A), Nom (B), Ville (C), Département/Zone (D), Type (E), Catégorie (F), URL (G), Email (H), Adresse (I)
                             allData = rows.slice(1).map(parts => ({
-                                name: parts[1] || "",
-                                city: parts[2] || "",
-                                dept: String(parts[3] || "").replace(/^0(?=\d)/, ''),
-                                type: parts[4] || "",
-                                cat: parts[5] || "Accessible", // Par défaut Accessible si vide
-                                url: parts[6] || "",
-                                email: parts[7] || "",
-                                address: parts[8] || ""
+                                name: parts[0] || "",
+                                city: parts[1] || "",
+                                dept: String(parts[2] || ""),
+                                type: parts[3] || "",
+                                cat: parts[4] || "Accessible",
+                                url: parts[5] || "",
+                                email: parts[6] || "",
+                                address: parts[7] || ""
                             })).filter(i => i.name);
                         } else {
-                            // Lecture CSV classique (existante)
                             const content = data;
                             const lines = content.split(/\r?\n/).filter(l => l.trim());
                             const sep = content.includes(';') ? ';' : ',';
                             allData = lines.slice(1).map(line => {
                                 const parts = line.split(new RegExp(`${sep}(?=(?:(?:[^"]*"){2})*[^"]*$)`)).map(p => p.replace(/^"|"$/g, '').trim());
-                                return { name: parts[1] || "", city: parts[2] || "", dept: String(parts[3] || "").replace(/^0(?=\d)/, ''), type: parts[4] || "", cat: parts[5] || "", url: parts[6] || "", email: parts[7] || "", address: parts[8] || "" };
+                                return { name: parts[0] || "", city: parts[1] || "", dept: String(parts[2] || ""), type: parts[3] || "", cat: parts[4] || "", url: parts[5] || "", email: parts[6] || "", address: parts[7] || "" };
                             }).filter(i => i.name);
                         }
 
@@ -234,8 +222,8 @@
             };
 
             const handleExport = () => {
-                const headers = ["ID", "Nom", "Ville", "Département", "Type", "Catégorie", "URL", "Email", "Adresse"];
-                const rows = localData.map(i => [i.id, `"${i.name}"`, `"${i.city}"`, i.dept, i.type, i.cat, `"${i.url}"`, `"${i.email}"`, `"${i.address}"`]);
+                const headers = ["Nom", "Ville", "Département", "Type", "Catégorie", "URL", "Email", "Adresse"];
+                const rows = localData.map(i => [`"${i.name}"`, `"${i.city}"`, i.dept, i.type, i.cat, `"${i.url}"`, `"${i.email}"`, `"${i.address}"`]);
                 const csvContent = "\uFEFF" + headers.join(";") + "\n" + rows.map(e => e.join(";")).join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
@@ -284,7 +272,7 @@
                             </div>
                             
                             <div className="flex items-center gap-2">
-                                <button onClick={() => { setModalMode('add'); setActiveEntry({ name: '', city: '', dept: '', type: FILTERS_BY_COUNTRY[country][0], cat: 'Accessible', address: '' }); }} className="bg-indigo-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black shadow-lg shadow-indigo-500/20">
+                                <button onClick={() => { setModalMode('add'); setActiveEntry({ name: '', city: '', dept: '', type: FILTERS_BY_COUNTRY[country][0], cat: 'Accessible', address: '' }); }} className="bg-indigo-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black shadow-lg">
                                     <Icon name="plus" /> <span className="hidden sm:inline">AJOUTER</span>
                                 </button>
                                 <button onClick={() => fileInputRef.current.click()} className="bg-slate-700 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black">
@@ -313,7 +301,7 @@
                             </div>
                             <div className="map-wrapper">
                                 {geoPaths.length === 0 ? <div className="animate-pulse font-black text-[10px] opacity-30">Chargement...</div> : (
-                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "0 0 550 500"} className="france-svg">
+                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "-20 -5 580 310"} className="france-svg">
                                         {geoPaths.map(item => (
                                             <path key={item.id} d={renderPath(item.geometry)} 
                                                 className={`dept-path ${String(selectedDept) === String(item.id) ? 'selected' : ''} ${deptsWithData.has(String(item.id)) ? 'has-data' : ''}`}
@@ -335,11 +323,11 @@
                                     <h2 className="text-xl lg:text-4xl font-black uppercase italic tracking-tighter">
                                         {selectedDept ? `Zone ${selectedDept}` : "Opportunités"}
                                     </h2>
-                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase hover:bg-white/20">Voir tout</button>}
+                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase">Voir tout</button>}
                                 </div>
                                 <div className="grid grid-cols-1 gap-3 w-full">
                                     {filteredData.length > 0 ? filteredData.map(item => (
-                                        <div key={item.fbKey} className="glass p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all w-full shadow-lg">
+                                        <div key={item.fbKey} className="glass p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all w-full">
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1 min-w-0 pr-4">
                                                     <h4 className="font-black uppercase truncate text-sm lg:text-lg">{item.name}</h4>
@@ -366,7 +354,7 @@
                             <div className="glass w-full max-w-md rounded-[2.5rem] overflow-hidden">
                                 <div className="bg-slate-900 p-6 flex justify-between items-center border-b border-white/5">
                                     <h3 className="font-black uppercase text-sm italic tracking-tighter">{modalMode === 'add' ? 'Ajouter' : 'Modifier'}</h3>
-                                    <button onClick={() => setModalMode(null)} className="p-2 text-slate-400 hover:text-white"><Icon name="x" /></button>
+                                    <button onClick={() => setModalMode(null)} className="p-2"><Icon name="x" /></button>
                                 </div>
                                 <form onSubmit={(e) => {
                                     e.preventDefault();
@@ -375,10 +363,10 @@
                                     else db.ref(`${path}/${activeEntry.fbKey}`).set(activeEntry);
                                     setModalMode(null);
                                 }} className="p-6 space-y-3">
-                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500 transition-colors" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
+                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
                                     <div className="grid grid-cols-2 gap-3">
-                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
-                                        <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
+                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
+                                        <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}>
