@@ -126,11 +126,11 @@
                 if (step !== 'map') return;
                 const url = country === 'france' 
                     ? 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson'
-                    : 'https://raw.githubusercontent.com/codeforgermany/click_that_hood/master/public/data/belgium.geojson';
+                    : 'https://raw.githubusercontent.com/mathiasleroy/Belgium-Geographic-Data/master/dist/polygons/geojson/Belgium.provinces.WGS84.geojson';
                 fetch(url).then(res => res.json()).then(data => {
                     setGeoPaths(data.features.map(f => ({ 
-                        id: country === 'france' ? f.properties.code : (f.properties.name_fr || f.properties.name), 
-                        name: f.properties.nom || f.properties.name_fr || f.properties.name, 
+                        id: country === 'france' ? f.properties.code : (f.properties.NameFRE || f.properties.name_fr || f.properties.name), 
+                        name: f.properties.nom || f.properties.NameFRE || f.properties.name_fr || f.properties.name, 
                         geometry: f.geometry 
                     })));
                 });
@@ -140,7 +140,7 @@
                 if (country === 'france') {
                     return [(coords[0] + 5.15) * 44, (51.8 - coords[1]) * 64]; 
                 }
-                return [(coords[0] - 2.5) * 125, (51.55 - coords[1]) * 195];
+                return [(coords[0] - 2.5) * 155, (51.55 - coords[1]) * 155];
             }, [country]);
 
             const renderPath = useCallback((geometry) => {
@@ -301,7 +301,7 @@
                             </div>
                             <div className="map-wrapper">
                                 {geoPaths.length === 0 ? <div className="animate-pulse font-black text-[10px] opacity-30">Chargement...</div> : (
-                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "0 0 550 500"} className="france-svg">
+                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "-10 -10 520 320"} className="france-svg">
                                         {geoPaths.map(item => (
                                             <path key={item.id} d={renderPath(item.geometry)} 
                                                 className={`dept-path ${String(selectedDept) === String(item.id) ? 'selected' : ''} ${deptsWithData.has(String(item.id)) ? 'has-data' : ''}`}
