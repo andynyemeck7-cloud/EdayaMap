@@ -138,7 +138,7 @@ function renderLogin(){
 function bindLogin(){
   const btn=document.getElementById('loginBtn');
   const pwd=document.getElementById('pwd');
-  const go=()=>{if(pwd.value==='edaya2024'){currentStep='menu';render()}else{alert('Mauvais mot de passe')}};
+  const go=()=>{if(pwd.value==='EdayaMap'){currentStep='menu';render()}else{alert('Mauvais mot de passe')}};
   btn.onclick=go;pwd.onkeydown=e=>{if(e.key==='Enter')go()};
 }
 
