@@ -1,391 +1,470 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EDAYA MAP</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-    
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: white; margin: 0; padding: 0; height: 100vh; overflow: hidden; }
-        
-        .dept-path { fill: #1e293b; stroke: #334155; stroke-width: 0.6; transition: fill 0.1s; cursor: pointer; -webkit-tap-highlight-color: transparent; outline: none; }
-        .dept-path:hover { fill: #334155; stroke: #6366f1; stroke-width: 1.2; }
-        .dept-path.has-data { fill: #1e1b4b; stroke: #6366f1; stroke-width: 0.8; }
-        .dept-path.selected { fill: #4338ca; stroke: #ffffff; stroke-width: 1.5; }
-        
-        .tooltip { position: fixed; pointer-events: none; background: #1e293b; color: white; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; z-index: 1000; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-
-        .app-container { display: flex; flex-direction: column; height: 100vh; }
-        @media (min-width: 1024px) {
-            .app-grid { display: grid; grid-template-columns: 1.1fr 1fr; height: calc(100vh - 70px); overflow: hidden; }
-            .sidebar-map { border-right: 1px solid rgba(255,255,255,0.05); }
-        }
-
-        @media (max-width: 1023px) {
-            .sidebar-map { height: 45vh; flex: none; background: rgba(15, 23, 42, 0.4); }
-            .mobile-bottom-sheet {
-                position: fixed;
-                bottom: 0; left: 0; right: 0;
-                background: #0f172a;
-                border-top: 1px solid rgba(255,255,255,0.1);
-                border-top-left-radius: 2rem; border-top-right-radius: 2rem;
-                z-index: 40; height: 75vh;
-                transition: transform 0.3s ease;
-            }
-            .sheet-closed { transform: translateY(calc(75vh - 60px)); }
-            .sheet-open { transform: translateY(0); }
-        }
-
-        .map-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .france-svg { width: 100%; height: 100%; max-height: 90%; }
-
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-    </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EDAYA MAP</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--card:#12121a;--border:#1e1e2e;--text:#e0e0e0;--muted:#888;--primary:#6c5ce7;--accent:#a29bfe;--danger:#ff6b6b;--emerald:#00b894;--glass:rgba(255,255,255,.03)}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;height:100vh}
+.tooltip-map{position:fixed;pointer-events:none;z-index:999;background:var(--primary);color:#fff;padding:4px 10px;border-radius:8px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:10px 16px;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.btn{padding:8px 12px;border-radius:8px;font-size:10px;font-weight:900;text-transform:uppercase;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;letter-spacing:.5px}
+.btn-back{background:#1e1e2e;color:var(--text)}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 4px 15px rgba(108,92,231,.3)}
+.btn-secondary{background:#1e1e2e;color:var(--text)}
+.btn-emerald{background:var(--emerald);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.main-grid{display:grid;grid-template-columns:1fr 1fr;flex:1;overflow:hidden;height:calc(100vh - 52px)}
+@media(max-width:1023px){.main-grid{grid-template-columns:1fr;grid-template-rows:45vh 1fr}}
+.map-side{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
+.filter-bar{padding:10px;background:rgba(18,18,26,.6);border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.filter-bar select{padding:8px;background:#1e1e2e;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:10px;font-weight:900;outline:none;cursor:pointer}
+.map-container{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:10px}
+.map-container svg{width:100%;height:100%;max-height:90%}
+.dept-path{fill:#1a1a2e;stroke:#2d2d44;stroke-width:.5;cursor:pointer;transition:all .2s}
+.dept-path:hover{fill:#2a2a4a;stroke:var(--accent)}
+.dept-path.selected{fill:var(--primary);stroke:var(--accent);stroke-width:1.5}
+.dept-path.has-data{fill:#1e1e3e;stroke:var(--primary);stroke-width:.8}
+.list-side{display:flex;flex-direction:column;overflow:hidden}
+.list-content{flex:1;overflow-y:auto;padding:16px}
+.list-content::-webkit-scrollbar{width:4px}
+.list-content::-webkit-scrollbar-thumb{background:var(--primary);border-radius:4px}
+.list-header{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--primary);padding-bottom:8px;margin-bottom:16px}
+.list-header h2{font-size:clamp(18px,3vw,32px);font-weight:900;text-transform:uppercase;font-style:italic;letter-spacing:-1px}
+.card{background:var(--glass);padding:16px;border-radius:20px;border:1px solid var(--border);transition:all .2s;margin-bottom:10px}
+.card:hover{border-color:rgba(108,92,231,.3)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start}
+.card-info{flex:1;min-width:0;padding-right:12px}
+.card-info h4{font-weight:900;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.card-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.tag{font-size:9px;font-weight:700;padding:2px 8px;border-radius:6px;text-transform:uppercase}
+.tag-loc{background:#1e1e2e;color:var(--muted)}
+.tag-type{background:rgba(108,92,231,.2);color:var(--accent);border:1px solid rgba(108,92,231,.3)}
+.card-actions{display:flex;gap:4px;align-items:center}
+.card-actions button{padding:6px;border:none;background:none;cursor:pointer;border-radius:6px;color:var(--muted);font-size:14px}
+.card-actions button:hover{background:#1e1e2e}
+.card-actions .del-btn:hover{background:rgba(255,107,107,.1);color:var(--danger)}
+.card-note{font-size:11px;color:var(--muted);font-style:italic;margin-top:6px}
+.modal-overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,10,15,.92);backdrop-filter:blur(8px)}
+.modal{background:var(--card);width:100%;max-width:420px;border-radius:24px;overflow:hidden;border:1px solid var(--border)}
+.modal-header{padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.modal-header h3{font-weight:900;text-transform:uppercase;font-style:italic;font-size:13px;letter-spacing:-0.5px}
+.modal form{padding:20px;display:flex;flex-direction:column;gap:10px}
+.modal input,.modal select,.modal textarea{width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:12px;font-weight:700;outline:none}
+.modal input:focus,.modal textarea:focus{border-color:var(--primary)}
+.modal .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal button[type=submit]{padding:14px;background:var(--primary);color:#fff;border:none;border-radius:12px;font-weight:900;text-transform:uppercase;letter-spacing:2px;font-size:10px;cursor:pointer}
+.login-page,.menu-page{height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;background:var(--bg)}
+.login-page h1,.menu-page h1{font-size:clamp(32px,8vw,64px);font-weight:900;font-style:italic;text-transform:uppercase;letter-spacing:-3px}
+.login-page input{padding:14px 20px;background:var(--card);border:1px solid var(--border);border-radius:16px;color:var(--text);font-weight:700;font-size:14px;width:280px;text-align:center;outline:none}
+.menu-btn{padding:20px 40px;border-radius:20px;font-size:14px;font-weight:900;text-transform:uppercase;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;letter-spacing:1px;transition:all .2s;min-width:200px}
+.menu-btn:hover{border-color:var(--primary);transform:translateY(-2px)}
+.empty{text-align:center;padding:60px 0;opacity:.2;font-weight:900;font-size:10px;text-transform:uppercase}
+.checkbox-cell{display:flex;align-items:center;justify-content:center;padding-right:8px}
+.checkbox-cell input[type=checkbox]{width:16px;height:16px;accent-color:var(--primary);cursor:pointer}
+.bulk-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.bulk-bar span{font-size:11px;font-weight:700;color:var(--muted)}
+</style>
 </head>
 <body>
-    <div id="root"></div>
+<div id="app"></div>
+<script>
+const firebaseConfig={apiKey:"AIzaSyCSJEBhDAgRVksDBE5Oax-qXFZLMQrE2mw",authDomain:"edayamap.firebaseapp.com",databaseURL:"https://edayamap-default-rtdb.europe-west1.firebasedatabase.app",projectId:"edayamap",storageBucket:"edayamap.firebasestorage.app",messagingSenderId:"652778578559",appId:"1:652778578559:web:8cb7a0f173740dd0ef554a"};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
 
-    <script type="text/babel">
-        const { useState, useMemo, useEffect, useRef, useCallback } = React;
+const FILTERS={
+  france:["Lieu","Festival","Booker","Media Spé","Radio"],
+  belgium:["Lieu","Festival","Booking","Media Spé","DJ","Management","Marques","Radio"]
+};
+const GEO_URLS={
+  france:'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson',
+  belgium:'https://raw.githubusercontent.com/mathiasleroy/Belgium-Geographic-Data/master/dist/polygons/geojson/Belgium.provinces.WGS84.geojson'
+};
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCSJEBhDAgRVksDBE5Oax-qXFZLMQrE2mw",
-            authDomain: "edayamap.firebaseapp.com",
-            databaseURL: "https://edayamap-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "edayamap",
-            storageBucket: "edayamap.firebasestorage.app",
-            messagingSenderId: "652778578559",
-            appId: "1:652778578559:web:8cb7a0f173740dd0ef554a"
-        };
+// Brussels-Capital Region approximate polygon
+const BRUSSELS_GEOJSON = {
+  type:"Feature",
+  properties:{NameFRE:"Bruxelles-Capitale",name_fr:"Bruxelles-Capitale",name:"Brussels-Capital"},
+  geometry:{type:"Polygon",coordinates:[[[4.28,50.915],[4.285,50.905],[4.29,50.895],[4.295,50.885],[4.3,50.875],[4.305,50.865],[4.31,50.86],[4.315,50.855],[4.32,50.8],[4.33,50.795],[4.34,50.795],[4.36,50.795],[4.38,50.795],[4.40,50.798],[4.42,50.80],[4.435,50.805],[4.44,50.81],[4.445,50.815],[4.45,50.825],[4.455,50.835],[4.455,50.845],[4.45,50.855],[4.445,50.865],[4.44,50.875],[4.43,50.885],[4.42,50.895],[4.41,50.90],[4.40,50.905],[4.39,50.91],[4.38,50.915],[4.36,50.918],[4.34,50.92],[4.32,50.92],[4.30,50.918],[4.28,50.915]]]}
+};
 
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+// Sheet name to filter type mapping for Belgium XLSX import
+function mapSheetToTypes(sheetName, row) {
+  const sn = sheetName.toLowerCase().trim();
+  const expertise = (row[1]||'').toString().toLowerCase().trim();
 
-        // LISTES DES FILTRES PAR PAYS (Modifiées selon tes instructions)
-        const FILTERS_BY_COUNTRY = {
-            france: ["Lieu", "Festival", "Booker", "Media Spé", "Radio"],
-            belgium: ["Lieu", "Festival", "Booking", "Media Spé", "DJ", "Management", "Marques", "Radio"]
-        };
+  if (sn.includes('dj')) return 'DJ';
+  if (sn.includes('radio')) return 'Radio';
+  if (sn.includes('média') || sn.includes('media')) return 'Media Spé';
+  if (sn.includes('marque')) return 'Marques';
 
-        const Icon = ({ name }) => {
-            if (name === 'plus') return <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
-            if (name === 'edit') return <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
-            if (name === 'trash') return <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
-            if (name === 'upload') return <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>;
-            if (name === 'download') return <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
-            if (name === 'back') return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6"></polyline></svg>;
-            if (name === 'x') return <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
-            return null;
-        };
+  if (sn.includes('management') || sn.includes('booking')) {
+    if (expertise.includes('management') && expertise.includes('booking')) return 'Management';
+    if (expertise.includes('booking')) return 'Booking';
+    if (expertise.includes('management')) return 'Management';
+    return 'Booking';
+  }
+  if (sn.includes('concert') || sn.includes('festival')) {
+    if (expertise.includes('festival')) return 'Festival';
+    if (expertise.includes('concert') || expertise.includes('lieu') || expertise.includes('salle')) return 'Lieu';
+    return 'Festival';
+  }
+  return FILTERS.belgium[0];
+}
 
-        const App = () => {
-            const [step, setStep] = useState('login'); 
-            const [country, setCountry] = useState(null);
-            const [pass, setPass] = useState('');
-            const [localData, setLocalData] = useState([]);
-            const [selectedDept, setSelectedDept] = useState(null);
-            const [hoveredItem, setHoveredItem] = useState(null);
-            const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-            const [filters, setFilters] = useState({ type: 'All', cat: 'All' });
-            const [geoPaths, setGeoPaths] = useState([]);
-            const [modalMode, setModalMode] = useState(null);
-            const [activeEntry, setActiveEntry] = useState(null);
-            const [isSheetOpen, setIsSheetOpen] = useState(false);
-            const fileInputRef = useRef(null);
+let currentStep='login', currentCountry=null, localData=[], geoPaths=[];
+let selectedDept=null, filterType='All', filterCat='All';
+let modalMode=null, activeEntry={};
+let hoveredItem=null, mousePos={x:0,y:0};
+let selectedKeys=new Set();
+let dbRef=null;
 
-            const handleLogin = (e) => {
-                e.preventDefault();
-                if (pass === 'EdayaMap') setStep('menu');
-                else alert('Mot de passe incorrect');
-            };
+function render(){
+  const app=document.getElementById('app');
+  if(currentStep==='login'){app.innerHTML=renderLogin();bindLogin();return}
+  if(currentStep==='menu'){app.innerHTML=renderMenu();bindMenu();return}
+  if(currentStep==='map'){app.innerHTML=renderMap();bindMap();return}
+}
 
-            useEffect(() => {
-                if (step !== 'map') return;
-                const dataRef = db.ref(`opportunities_${country}`);
-                dataRef.on('value', (snapshot) => {
-                    const data = snapshot.val();
-                    const list = data ? Object.keys(data).map(key => ({ ...data[key], fbKey: key })) : [];
-                    setLocalData(list);
-                });
-                return () => dataRef.off();
-            }, [step, country]);
+function renderLogin(){
+  return `<div class="login-page"><h1>EDAYA MAP</h1><input id="pwd" type="password" placeholder="Mot de passe" /><button class="btn btn-primary" id="loginBtn" style="width:280px;justify-content:center;padding:14px">ENTRER</button></div>`;
+}
+function bindLogin(){
+  const btn=document.getElementById('loginBtn');
+  const pwd=document.getElementById('pwd');
+  const go=()=>{if(pwd.value==='edaya2024'){currentStep='menu';render()}else{alert('Mauvais mot de passe')}};
+  btn.onclick=go;pwd.onkeydown=e=>{if(e.key==='Enter')go()};
+}
 
-            useEffect(() => {
-                if (step !== 'map') return;
-                const url = country === 'france' 
-                    ? 'https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson'
-                    : 'https://raw.githubusercontent.com/mathiasleroy/Belgium-Geographic-Data/master/dist/polygons/geojson/Belgium.provinces.WGS84.geojson';
-                fetch(url).then(res => res.json()).then(data => {
-                    setGeoPaths(data.features.map(f => ({ 
-                        id: country === 'france' ? f.properties.code : (f.properties.NameFRE || f.properties.name_fr || f.properties.name), 
-                        name: f.properties.nom || f.properties.NameFRE || f.properties.name_fr || f.properties.name, 
-                        geometry: f.geometry 
-                    })));
-                });
-            }, [step, country]);
+function renderMenu(){
+  return `<div class="menu-page"><h1>EDAYA MAP</h1><div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center"><button class="menu-btn" data-c="france">🇫🇷 FRANCE</button><button class="menu-btn" data-c="belgium">🇧🇪 BELGIQUE</button></div></div>`;
+}
+function bindMenu(){
+  document.querySelectorAll('.menu-btn').forEach(b=>b.onclick=()=>{currentCountry=b.dataset.c;currentStep='map';selectedDept=null;filterType='All';filterCat='All';selectedKeys.clear();loadGeo();listenData()});
+}
 
-            const project = useCallback((coords) => {
-                if (country === 'france') {
-                    return [(coords[0] + 5.15) * 44, (51.8 - coords[1]) * 64]; 
-                }
-                return [(coords[0] - 2.3) * 145, (51.6 - coords[1]) * 145];
-            }, [country]);
+function listenData(){
+  if(dbRef)dbRef.off();
+  dbRef=db.ref('opportunities_'+currentCountry);
+  dbRef.on('value',snap=>{
+    const d=snap.val();
+    localData=d?Object.keys(d).map(k=>({...d[k],fbKey:k})):[];
+    if(currentStep==='map')renderListOnly();
+  });
+}
 
-            const renderPath = useCallback((geometry) => {
-                const polys = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
-                return polys.map(poly => `M ${poly[0].map(c => project(c).join(",")).join(" L ")} Z`).join(" ");
-            }, [project]);
+function loadGeo(){
+  fetch(GEO_URLS[currentCountry]).then(r=>r.json()).then(data=>{
+    geoPaths=data.features.map(f=>{
+      if(currentCountry==='france')return{id:f.properties.code,name:f.properties.nom,geometry:f.geometry};
+      const name=f.properties.NameFRE||f.properties.name_fr||f.properties.name;
+      return{id:name,name,geometry:f.geometry};
+    });
+    // Add Brussels for Belgium
+    if(currentCountry==='belgium'){
+      const hasBrussels=geoPaths.some(g=>g.name.toLowerCase().includes('bruxelles'));
+      if(!hasBrussels){
+        geoPaths.push({id:'Bruxelles-Capitale',name:'Bruxelles-Capitale',geometry:BRUSSELS_GEOJSON.geometry});
+      }
+    }
+    render();
+  });
+}
 
-            const filteredData = useMemo(() => {
-                return localData
-                    .filter(i => {
-                        const t = filters.type === 'All' || i.type === filters.type;
-                        const c = filters.cat === 'All' || i.cat === filters.cat;
-                        const d = !selectedDept || String(i.dept) === String(selectedDept);
-                        return t && c && d;
-                    })
-                    .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
-            }, [localData, filters, selectedDept]);
+function project(coords){
+  if(currentCountry==='france')return[(coords[0]+5.15)*44,(51.8-coords[1])*64];
+  const scale=120,ox=1.8,oy=51.65;
+  return[(coords[0]-ox)*scale,(oy-coords[1])*scale];
+}
 
-            const deptsWithData = useMemo(() => {
-                const visibleSet = new Set();
-                localData.forEach(i => {
-                    if ((filters.type === 'All' || i.type === filters.type) && (filters.cat === 'All' || i.cat === filters.cat)) {
-                        visibleSet.add(String(i.dept));
-                    }
-                });
-                return visibleSet;
-            }, [localData, filters]);
+function pathD(geometry){
+  const polys=geometry.type==="Polygon"?[geometry.coordinates]:geometry.coordinates;
+  return polys.map(poly=>`M ${poly[0].map(c=>project(c).join(",")).join(" L ")} Z`).join(" ");
+}
 
-            const handleImport = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
+function filtered(){
+  return localData.filter(i=>{
+    const t=filterType==='All'||i.type===filterType;
+    const c=filterCat==='All'||i.cat===filterCat;
+    const d=!selectedDept||String(i.dept)===String(selectedDept);
+    return t&&c&&d;
+  }).sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr',{sensitivity:'base'}));
+}
 
-                reader.onload = async (event) => {
-                    let allData = [];
-                    const data = event.target.result;
-                    try {
-                        if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-                            const workbook = XLSX.read(data, { type: 'binary' });
-                            const sheetName = workbook.SheetNames[0];
-                            const sheet = workbook.Sheets[sheetName];
-                            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                            allData = rows.slice(1).map(parts => ({
-                                name: parts[0] || "",
-                                city: parts[1] || "",
-                                dept: String(parts[2] || ""),
-                                type: parts[3] || "",
-                                cat: parts[4] || "Accessible",
-                                url: parts[5] || "",
-                                email: parts[6] || "",
-                                address: parts[7] || ""
-                            })).filter(i => i.name);
-                        } else {
-                            const content = data;
-                            const lines = content.split(/\r?\n/).filter(l => l.trim());
-                            const sep = content.includes(';') ? ';' : ',';
-                            allData = lines.slice(1).map(line => {
-                                const parts = line.split(new RegExp(`${sep}(?=(?:(?:[^"]*"){2})*[^"]*$)`)).map(p => p.replace(/^"|"$/g, '').trim());
-                                return { name: parts[0] || "", city: parts[1] || "", dept: String(parts[2] || ""), type: parts[3] || "", cat: parts[4] || "", url: parts[5] || "", email: parts[6] || "", address: parts[7] || "" };
-                            }).filter(i => i.name);
-                        }
+function deptsWithData(){
+  const s=new Set();
+  localData.forEach(i=>{if((filterType==='All'||i.type===filterType)&&(filterCat==='All'||i.cat===filterCat))s.add(String(i.dept))});
+  return s;
+}
 
-                        const existingNames = new Set(localData.map(item => item.name.trim().toLowerCase()));
-                        const finalData = allData.filter(item => !existingNames.has(item.name.trim().toLowerCase()));
+function renderMap(){
+  const svgVB=currentCountry==='france'?"0 0 600 650":"30 0 530 310";
+  const types=FILTERS[currentCountry];
+  const dwd=deptsWithData();
+  const items=filtered();
+  const allSelected=items.length>0&&items.every(i=>selectedKeys.has(i.fbKey));
 
-                        if (finalData.length === 0) { alert("Pas de nouveautés."); return; }
-                        if(confirm(`Importer ${finalData.length} fiches ?`)) {
-                            const promises = finalData.map(item => db.ref(`opportunities_${country}`).push({ ...item, id: Date.now() + Math.random() }));
-                            await Promise.all(promises); alert("Ok !");
-                        }
-                    } catch (err) { alert("Erreur d'import : " + err.message); }
-                };
+  return `<div style="display:flex;flex-direction:column;height:100vh" id="mapRoot">
+  <div class="tooltip-map" id="tooltip" style="display:none"></div>
+  <header>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-back" id="backBtn">◀ <span class="hide-sm">RETOUR</span></button>
+      <h1 style="font-weight:900;font-style:italic;font-size:18px;text-transform:uppercase;letter-spacing:-1px">EDAYA MAP</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="addBtn">＋ <span class="hide-sm">AJOUTER</span></button>
+      <button class="btn btn-secondary" id="importBtn">📤 <span class="hide-sm">IMPORTER</span></button>
+      <input type="file" id="fileInput" style="display:none" accept=".csv,.xlsx,.xls"/>
+      <button class="btn btn-emerald" id="exportBtn">📥 <span class="hide-sm">EXPORTER</span></button>
+    </div>
+  </header>
+  ${selectedKeys.size>0?`<div class="bulk-bar"><span>${selectedKeys.size} sélectionné(s)</span><button class="btn btn-danger" id="bulkDeleteBtn">🗑 SUPPRIMER</button><button class="btn btn-secondary" id="clearSelBtn">DÉSÉLECTIONNER</button></div>`:''}
+  <div class="main-grid">
+    <div class="map-side">
+      <div class="filter-bar">
+        <select id="filterType"><option value="All">TOUT TYPE</option>${types.map(t=>`<option ${filterType===t?'selected':''}>${t}</option>`).join('')}</select>
+        <select id="filterCat"><option value="All">STATUT</option><option ${filterCat==='Accessible'?'selected':''}>Accessible</option><option ${filterCat==='Plus tard'?'selected':''}>Plus tard</option></select>
+      </div>
+      <div class="map-container">
+        ${geoPaths.length===0?'<div style="opacity:.3;font-weight:900;font-size:10px">Chargement...</div>':`
+        <svg viewBox="${svgVB}">
+          ${geoPaths.map(g=>`<path d="${pathD(g.geometry)}" class="dept-path ${String(selectedDept)===String(g.id)?'selected':''} ${dwd.has(String(g.id))?'has-data':''}" data-id="${g.id}" data-name="${g.name}"/>`).join('')}
+        </svg>`}
+      </div>
+    </div>
+    <div class="list-side" id="listSide">
+      ${renderList(items,allSelected)}
+    </div>
+  </div>
+  ${modalMode?renderModal():''}
+  </div>`;
+}
 
-                if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-                    reader.readAsBinaryString(file);
-                } else {
-                    reader.readAsText(file);
-                }
-            };
+function renderList(items,allSelected){
+  return `<div class="list-content">
+    <div class="list-header">
+      <h2>${selectedDept?'Zone '+selectedDept:'Opportunités'}</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${selectedDept?'<button class="btn btn-secondary" id="clearDeptBtn">Voir tout</button>':''}
+      </div>
+    </div>
+    ${items.length>0?`<div style="margin-bottom:10px;display:flex;align-items:center;gap:8px"><label style="font-size:10px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="selectAll" ${allSelected?'checked':''} style="accent-color:var(--primary);width:14px;height:14px"/>TOUT SÉLECTIONNER</label></div>`:''}
+    ${items.length>0?items.map(i=>`<div class="card">
+      <div class="card-top">
+        <div class="checkbox-cell"><input type="checkbox" class="item-cb" data-key="${i.fbKey}" ${selectedKeys.has(i.fbKey)?'checked':''}/></div>
+        <div class="card-info">
+          <h4>${esc(i.name)}</h4>
+          <div class="card-tags">
+            <span class="tag tag-loc">${esc(i.city)} (${esc(i.dept)})</span>
+            <span class="tag tag-type">${esc(i.type)}</span>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="edit-btn" data-key="${i.fbKey}" title="Modifier">✏️</button>
+          <button class="del-btn" data-key="${i.fbKey}" title="Supprimer">🗑️</button>
+        </div>
+      </div>
+      <p class="card-note">${esc(i.address||'...')}</p>
+    </div>`).join(''):'<div class="empty">Aucun résultat</div>'}
+  </div>`;
+}
 
-            const handleExport = () => {
-                const headers = ["Nom", "Ville", "Département", "Type", "Catégorie", "URL", "Email", "Adresse"];
-                const rows = localData.map(i => [`"${i.name}"`, `"${i.city}"`, i.dept, i.type, i.cat, `"${i.url}"`, `"${i.email}"`, `"${i.address}"`]);
-                const csvContent = "\uFEFF" + headers.join(";") + "\n" + rows.map(e => e.join(";")).join("\n");
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(blob); link.download = `edaya_${country}.csv`; link.click();
-            };
+function renderListOnly(){
+  const ls=document.getElementById('listSide');
+  if(!ls)return;
+  const items=filtered();
+  const allSelected=items.length>0&&items.every(i=>selectedKeys.has(i.fbKey));
+  ls.innerHTML=renderList(items,allSelected);
+  bindListEvents();
+  // Update bulk bar
+  const existing=document.querySelector('.bulk-bar');
+  if(selectedKeys.size>0&&!existing){
+    const mg=document.querySelector('.main-grid');
+    if(mg){const bar=document.createElement('div');bar.className='bulk-bar';bar.innerHTML=`<span>${selectedKeys.size} sélectionné(s)</span><button class="btn btn-danger" id="bulkDeleteBtn">🗑 SUPPRIMER</button><button class="btn btn-secondary" id="clearSelBtn">DÉSÉLECTIONNER</button>`;mg.before(bar);document.getElementById('bulkDeleteBtn').onclick=bulkDelete;document.getElementById('clearSelBtn').onclick=()=>{selectedKeys.clear();renderListOnly()}}
+  } else if(selectedKeys.size===0&&existing){existing.remove()}
+  else if(existing){existing.querySelector('span').textContent=selectedKeys.size+' sélectionné(s)'}
+}
 
-            if (step === 'login') return (
-                <div className="h-screen flex items-center justify-center bg-slate-950 p-4">
-                    <form onSubmit={handleLogin} className="glass p-10 rounded-[2.5rem] w-full max-w-sm text-center">
-                        <h1 className="text-2xl font-black italic mb-6 tracking-tighter uppercase">EDAYA MAP ACCESS</h1>
-                        <input type="password" placeholder="Mot de passe" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 mb-4 text-center font-bold outline-none" value={pass} onChange={e => setPass(e.target.value)} />
-                        <button type="submit" className="w-full py-4 bg-indigo-600 rounded-xl font-black uppercase tracking-widest text-sm shadow-xl">Entrer</button>
-                    </form>
-                </div>
-            );
+function renderModal(){
+  const types=FILTERS[currentCountry];
+  const e=activeEntry;
+  return `<div class="modal-overlay" id="modalOverlay"><div class="modal">
+    <div class="modal-header"><h3>${modalMode==='add'?'Ajouter':'Modifier'}</h3><button id="closeModal" style="background:none;border:none;color:var(--text);font-size:18px;cursor:pointer">✕</button></div>
+    <form id="entryForm">
+      <input required placeholder="Nom structure" value="${esc(e.name||'')}" name="name"/>
+      <div class="row2"><input required placeholder="Ville" value="${esc(e.city||'')}" name="city"/><input required placeholder="Zone" value="${esc(e.dept||'')}" name="dept"/></div>
+      <div class="row2">
+        <select name="type">${types.map(t=>`<option ${e.type===t?'selected':''}>${t}</option>`).join('')}</select>
+        <select name="cat"><option ${e.cat==='Accessible'?'selected':''}>Accessible</option><option ${e.cat==='Plus tard'?'selected':''}>Plus tard</option></select>
+      </div>
+      <textarea placeholder="Notes / Adresse" name="address" rows="3">${esc(e.address||'')}</textarea>
+      <button type="submit">Enregistrer</button>
+    </form>
+  </div></div>`;
+}
 
-            if (step === 'menu') return (
-                <div className="h-screen flex items-center justify-center bg-slate-950 p-4 text-center">
-                    <div className="w-full max-w-md">
-                        <h2 className="text-3xl font-black mb-8 uppercase tracking-tighter italic">ZONE DE PROSPECTION</h2>
-                        <div className="grid grid-cols-1 gap-4">
-                            <button onClick={() => { setCountry('france'); setStep('map'); }} className="glass p-12 rounded-3xl hover:bg-indigo-600 transition-all border border-white/5">
-                                <span className="text-5xl mb-2 block">🇫🇷</span>
-                                <h3 className="font-black uppercase tracking-tighter text-xl">FRANCE</h3>
-                            </button>
-                            <button onClick={() => { setCountry('belgium'); setStep('map'); }} className="glass p-12 rounded-3xl hover:bg-indigo-600 transition-all border border-white/5">
-                                <span className="text-5xl mb-2 block">🇧🇪</span>
-                                <h3 className="font-black uppercase tracking-tighter text-xl">BELGIQUE</h3>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-            return (
-                <div className="app-container" onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}>
-                    {hoveredItem && <div className="tooltip" style={{ left: mousePos.x + 15, top: mousePos.y - 15 }}>{hoveredItem.name}</div>}
+function bindMap(){
+  document.getElementById('backBtn').onclick=()=>{currentStep='menu';if(dbRef)dbRef.off();selectedKeys.clear();render()};
+  document.getElementById('addBtn').onclick=()=>{modalMode='add';activeEntry={name:'',city:'',dept:'',type:FILTERS[currentCountry][0],cat:'Accessible',address:''};render()};
+  document.getElementById('importBtn').onclick=()=>document.getElementById('fileInput').click();
+  document.getElementById('fileInput').onchange=handleImport;
+  document.getElementById('exportBtn').onclick=handleExport;
 
-                    <header className="bg-slate-900 border-b border-white/5 shadow-2xl p-3 z-50">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => { setStep('menu'); setSelectedDept(null); }} className="bg-slate-800 p-2 rounded-lg flex items-center gap-1 text-[10px] font-black uppercase">
-                                    <Icon name="back" /> <span className="hidden sm:inline">RETOUR</span>
-                                </button>
-                                <h1 className="font-black italic text-lg uppercase tracking-tighter">EDAYA MAP</h1>
-                            </div>
-                            
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => { setModalMode('add'); setActiveEntry({ name: '', city: '', dept: '', type: FILTERS_BY_COUNTRY[country][0], cat: 'Accessible', address: '' }); }} className="bg-indigo-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black shadow-lg">
-                                    <Icon name="plus" /> <span className="hidden sm:inline">AJOUTER</span>
-                                </button>
-                                <button onClick={() => fileInputRef.current.click()} className="bg-slate-700 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black">
-                                    <Icon name="upload" /> <span className="hidden sm:inline">IMPORTER EXCEL/CSV</span>
-                                </button>
-                                <input type="file" ref={fileInputRef} className="hidden" accept=".csv, .xlsx, .xls" onChange={handleImport} />
-                                <button onClick={handleExport} className="bg-emerald-600 px-3 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black">
-                                    <Icon name="download" /> <span className="hidden sm:inline">EXPORTER CSV</span>
-                                </button>
-                            </div>
-                        </div>
-                    </header>
+  if(document.getElementById('bulkDeleteBtn'))document.getElementById('bulkDeleteBtn').onclick=bulkDelete;
+  if(document.getElementById('clearSelBtn'))document.getElementById('clearSelBtn').onclick=()=>{selectedKeys.clear();render()};
 
-                    <div className="app-grid">
-                        <div className="sidebar-map flex flex-col overflow-hidden">
-                            <div className="p-3 bg-slate-900/40 border-b border-white/5">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <select onChange={(e) => { setFilters(p => ({ ...p, type: e.target.value })); setSelectedDept(null); }} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black outline-none border border-white/10 text-white cursor-pointer">
-                                        <option value="All">TOUT TYPE</option>
-                                        {FILTERS_BY_COUNTRY[country].map(t => <option key={t}>{t}</option>)}
-                                    </select>
-                                    <select onChange={(e) => { setFilters(p => ({ ...p, cat: e.target.value })); setSelectedDept(null); }} className="p-2 bg-slate-800 rounded-lg text-[10px] font-black outline-none border border-white/10 text-white cursor-pointer">
-                                        <option value="All">STATUT</option><option>Accessible</option><option>Plus tard</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="map-wrapper">
-                                {geoPaths.length === 0 ? <div className="animate-pulse font-black text-[10px] opacity-30">Chargement...</div> : (
-                                    <svg viewBox={country === 'france' ? "0 0 600 650" : "-20 -5 580 310"} className="france-svg">
-                                        {geoPaths.map(item => (
-                                            <path key={item.id} d={renderPath(item.geometry)} 
-                                                className={`dept-path ${String(selectedDept) === String(item.id) ? 'selected' : ''} ${deptsWithData.has(String(item.id)) ? 'has-data' : ''}`}
-                                                onMouseEnter={() => setHoveredItem(item)}
-                                                onMouseLeave={() => setHoveredItem(null)}
-                                                onClick={() => { setSelectedDept(selectedDept === item.id ? null : item.id); if(window.innerWidth < 1024) setIsSheetOpen(true); }} />
-                                        ))}
-                                    </svg>
-                                )}
-                            </div>
-                        </div>
+  document.getElementById('filterType').onchange=e=>{filterType=e.target.value;selectedDept=null;selectedKeys.clear();renderListOnly();updateMapHighlights()};
+  document.getElementById('filterCat').onchange=e=>{filterCat=e.target.value;selectedDept=null;selectedKeys.clear();renderListOnly();updateMapHighlights()};
 
-                        <div className={`content-scroll mobile-bottom-sheet ${isSheetOpen ? 'sheet-open' : 'sheet-closed'} lg:translate-y-0 flex flex-col overflow-hidden bg-slate-950 border-t lg:border-t-0 border-white/5`}>
-                            <div className="p-3 flex items-center justify-center lg:hidden" onClick={() => setIsSheetOpen(!isSheetOpen)}>
-                                <div className="w-10 h-1 bg-slate-700 rounded-full"></div>
-                            </div>
-                            <div className="p-4 lg:p-8 flex-grow overflow-y-auto custom-scrollbar">
-                                <div className="flex justify-between items-end mb-6 border-b-2 border-indigo-600 pb-2">
-                                    <h2 className="text-xl lg:text-4xl font-black uppercase italic tracking-tighter">
-                                        {selectedDept ? `Zone ${selectedDept}` : "Opportunités"}
-                                    </h2>
-                                    {selectedDept && <button onClick={() => setSelectedDept(null)} className="text-[10px] bg-white/10 px-2 py-1 rounded font-black uppercase">Voir tout</button>}
-                                </div>
-                                <div className="grid grid-cols-1 gap-3 w-full">
-                                    {filteredData.length > 0 ? filteredData.map(item => (
-                                        <div key={item.fbKey} className="glass p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all w-full">
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex-1 min-w-0 pr-4">
-                                                    <h4 className="font-black uppercase truncate text-sm lg:text-lg">{item.name}</h4>
-                                                    <div className="flex flex-wrap gap-2 mt-1">
-                                                        <span className="text-[9px] font-bold text-slate-400 uppercase bg-white/5 px-2 py-0.5 rounded-md">{item.city} ({item.dept})</span>
-                                                        <span className="text-[9px] font-black px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded-md border border-indigo-500/30 uppercase">{item.type}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => { setModalMode('edit'); setActiveEntry(item); }} className="p-2 text-indigo-400 hover:bg-white/5 rounded-lg"><Icon name="edit" /></button>
-                                                    <button onClick={() => { if(confirm("Supprimer ?")) db.ref(`opportunities_${country}/${item.fbKey}`).remove(); }} className="p-2 text-red-500/70 hover:bg-red-500/10 rounded-lg"><Icon name="trash" /></button>
-                                                </div>
-                                            </div>
-                                            <p className="text-[10px] lg:text-xs text-slate-400 mt-2 italic">{item.address || "..."}</p>
-                                        </div>
-                                    )) : <div className="text-center py-20 opacity-20 font-black text-[10px] uppercase">Aucun résultat</div>}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+  // Map paths
+  const tooltip=document.getElementById('tooltip');
+  document.querySelectorAll('.dept-path').forEach(p=>{
+    p.onmouseenter=()=>{tooltip.style.display='block';tooltip.textContent=p.dataset.name};
+    p.onmouseleave=()=>{tooltip.style.display='none'};
+    p.onclick=()=>{selectedDept=selectedDept===p.dataset.id?null:p.dataset.id;selectedKeys.clear();updateMapHighlights();renderListOnly()};
+  });
+  document.getElementById('mapRoot').onmousemove=e=>{tooltip.style.left=e.clientX+15+'px';tooltip.style.top=e.clientY-15+'px'};
 
-                    {modalMode && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-                            <div className="glass w-full max-w-md rounded-[2.5rem] overflow-hidden">
-                                <div className="bg-slate-900 p-6 flex justify-between items-center border-b border-white/5">
-                                    <h3 className="font-black uppercase text-sm italic tracking-tighter">{modalMode === 'add' ? 'Ajouter' : 'Modifier'}</h3>
-                                    <button onClick={() => setModalMode(null)} className="p-2"><Icon name="x" /></button>
-                                </div>
-                                <form onSubmit={(e) => {
-                                    e.preventDefault();
-                                    const path = `opportunities_${country}`;
-                                    if (modalMode === 'add') db.ref(path).push({ ...activeEntry, id: Date.now() });
-                                    else db.ref(`${path}/${activeEntry.fbKey}`).set(activeEntry);
-                                    setModalMode(null);
-                                }} className="p-6 space-y-3">
-                                    <input required placeholder="Nom structure" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.name} onChange={e => setActiveEntry({...activeEntry, name: e.target.value})} />
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <input required placeholder="Ville" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.city} onChange={e => setActiveEntry({...activeEntry, city: e.target.value})} />
-                                        <input required placeholder="Zone" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none" value={activeEntry.dept} onChange={e => setActiveEntry({...activeEntry, dept: e.target.value})} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.type} onChange={e => setActiveEntry({...activeEntry, type: e.target.value})}>
-                                            {FILTERS_BY_COUNTRY[country].map(t => <option key={t}>{t}</option>)}
-                                        </select>
-                                        <select className="p-4 bg-slate-900 text-white rounded-xl border border-white/10 text-[10px] font-black outline-none" value={activeEntry.cat} onChange={e => setActiveEntry({...activeEntry, cat: e.target.value})}><option>Accessible</option><option>Plus tard</option></select>
-                                    </div>
-                                    <textarea placeholder="Notes / Adresse" className="w-full p-4 bg-slate-900 text-white rounded-xl border border-white/10 font-bold text-xs outline-none focus:border-indigo-500 transition-colors" rows="3" value={activeEntry.address} onChange={e => setActiveEntry({...activeEntry, address: e.target.value})} />
-                                    <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-indigo-500 transition-all">Enregistrer</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
+  bindListEvents();
+  if(modalMode)bindModal();
+}
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+function bindListEvents(){
+  document.querySelectorAll('.edit-btn').forEach(b=>b.onclick=()=>{
+    const item=localData.find(i=>i.fbKey===b.dataset.key);
+    if(item){modalMode='edit';activeEntry={...item};render()}
+  });
+  document.querySelectorAll('.del-btn').forEach(b=>b.onclick=()=>{
+    if(confirm('Supprimer ?'))db.ref('opportunities_'+currentCountry+'/'+b.dataset.key).remove();
+  });
+  document.querySelectorAll('.item-cb').forEach(cb=>{
+    cb.onchange=()=>{
+      if(cb.checked)selectedKeys.add(cb.dataset.key);else selectedKeys.delete(cb.dataset.key);
+      renderListOnly();
+    };
+  });
+  const sa=document.getElementById('selectAll');
+  if(sa)sa.onchange=()=>{
+    const items=filtered();
+    if(sa.checked)items.forEach(i=>selectedKeys.add(i.fbKey));
+    else items.forEach(i=>selectedKeys.delete(i.fbKey));
+    renderListOnly();
+  };
+  if(document.getElementById('clearDeptBtn'))document.getElementById('clearDeptBtn').onclick=()=>{selectedDept=null;selectedKeys.clear();updateMapHighlights();renderListOnly()};
+}
+
+function bulkDelete(){
+  if(selectedKeys.size===0)return;
+  if(!confirm(`Supprimer ${selectedKeys.size} fiche(s) ?`))return;
+  const promises=[...selectedKeys].map(k=>db.ref('opportunities_'+currentCountry+'/'+k).remove());
+  Promise.all(promises).then(()=>{selectedKeys.clear()});
+}
+
+function updateMapHighlights(){
+  const dwd=deptsWithData();
+  document.querySelectorAll('.dept-path').forEach(p=>{
+    p.classList.toggle('selected',String(selectedDept)===p.dataset.id);
+    p.classList.toggle('has-data',dwd.has(p.dataset.id));
+  });
+}
+
+function bindModal(){
+  document.getElementById('closeModal').onclick=()=>{modalMode=null;render()};
+  document.getElementById('modalOverlay').onclick=e=>{if(e.target.id==='modalOverlay'){modalMode=null;render()}};
+  document.getElementById('entryForm').onsubmit=e=>{
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const obj=Object.fromEntries(fd);
+    const path='opportunities_'+currentCountry;
+    if(modalMode==='add'){db.ref(path).push({...obj,id:Date.now()})}
+    else{const{fbKey,...data}=activeEntry;db.ref(path+'/'+fbKey).set({...data,...obj})}
+    modalMode=null;render();
+  };
+}
+
+function handleImport(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    let allData=[];
+    try{
+      if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')){
+        const wb=XLSX.read(ev.target.result,{type:'binary'});
+        wb.SheetNames.forEach(sheetName=>{
+          const sheet=wb.Sheets[sheetName];
+          const rows=XLSX.utils.sheet_to_json(sheet,{header:1});
+          // Find header row (first row with content)
+          let headerIdx=0;
+          for(let i=0;i<Math.min(rows.length,5);i++){
+            if(rows[i]&&rows[i].some(c=>c&&String(c).toLowerCase().includes('nom'))){headerIdx=i;break}
+          }
+          // Find column indices
+          const headers=(rows[headerIdx]||[]).map(h=>String(h||'').toLowerCase().trim());
+          const colName=headers.findIndex(h=>h.includes('nom'));
+          const colExpertise=headers.findIndex(h=>h.includes('expertise'));
+          const colCat=headers.findIndex(h=>h.includes('catégorie')||h.includes('categorie'));
+          const colCity=headers.findIndex(h=>h.includes('ville'));
+          const colInsta=headers.findIndex(h=>h.includes('instagram')||h.includes('insta'));
+          const colEmail=headers.findIndex(h=>h.includes('email')||h.includes('mail'));
+          const colAddr=headers.findIndex(h=>h.includes('adresse')||h.includes('address'));
+
+          rows.slice(headerIdx+1).forEach(row=>{
+            if(!row||!row[colName>=0?colName:0])return;
+            const name=String(row[colName>=0?colName:0]||'').trim();
+            if(!name)return;
+            const type=mapSheetToTypes(sheetName,row);
+            const city=colCity>=0?String(row[colCity]||'').trim():'';
+            // Try to find province/dept from city or dedicated column
+            let dept=city;
+            const cat=colCat>=0?String(row[colCat]||'').trim():'Accessible';
+            const url=colInsta>=0?String(row[colInsta]||'').trim():'';
+            const email=colEmail>=0?String(row[colEmail]||'').trim():'';
+            const address=colAddr>=0?String(row[colAddr]||'').trim():'';
+
+            allData.push({name,city,dept,type,cat:cat||'Accessible',url,email,address});
+          });
+        });
+      }else{
+        const content=ev.target.result;
+        const lines=content.split(/\r?\n/).filter(l=>l.trim());
+        const sep=content.includes(';')?';':',';
+        allData=lines.slice(1).map(line=>{
+          const parts=line.split(new RegExp(`${sep}(?=(?:(?:[^"]*"){2})*[^"]*$)`)).map(p=>p.replace(/^"|"$/g,'').trim());
+          return{name:parts[0]||'',city:parts[1]||'',dept:String(parts[2]||''),type:parts[3]||'',cat:parts[4]||'Accessible',url:parts[5]||'',email:parts[6]||'',address:parts[7]||''};
+        }).filter(i=>i.name);
+      }
+      const existing=new Set(localData.map(i=>i.name.trim().toLowerCase()));
+      const finalData=allData.filter(i=>!existing.has(i.name.trim().toLowerCase()));
+      if(finalData.length===0){alert("Pas de nouveautés.");return}
+      if(confirm(`Importer ${finalData.length} fiches ?`)){
+        const promises=finalData.map(item=>db.ref('opportunities_'+currentCountry).push({...item,id:Date.now()+Math.random()}));
+        await Promise.all(promises);
+        alert("Ok !");
+      }
+    }catch(err){alert("Erreur d'import : "+err.message)}
+  };
+  if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls'))reader.readAsBinaryString(file);
+  else reader.readAsText(file);
+  e.target.value='';
+}
+
+function handleExport(){
+  const headers=["Nom","Ville","Département","Type","Catégorie","URL","Email","Adresse"];
+  const rows=localData.map(i=>[`"${i.name}"`,`"${i.city}"`,i.dept,i.type,i.cat,`"${i.url}"`,`"${i.email}"`,`"${i.address}"`]);
+  const csv="\uFEFF"+headers.join(";")+"\n"+rows.map(e=>e.join(";")).join("\n");
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=`edaya_${currentCountry}.csv`;link.click();
+}
+
+render();
+</script>
 </body>
 </html>
