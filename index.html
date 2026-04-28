@@ -94,28 +94,53 @@ const BRUSSELS_GEOJSON = {
   geometry:{type:"Polygon",coordinates:[[[4.3137,50.9139],[4.3207,50.9050],[4.3290,50.8960],[4.3380,50.8880],[4.3480,50.8800],[4.3570,50.8740],[4.3670,50.8690],[4.3790,50.8650],[4.3920,50.8630],[4.4060,50.8630],[4.4180,50.8660],[4.4290,50.8710],[4.4380,50.8780],[4.4440,50.8860],[4.4480,50.8950],[4.4490,50.9050],[4.4470,50.9150],[4.4420,50.9240],[4.4340,50.9310],[4.4240,50.9370],[4.4120,50.9410],[4.3990,50.9420],[4.3860,50.9410],[4.3730,50.9380],[4.3600,50.9330],[4.3470,50.9280],[4.3350,50.9230],[4.3240,50.9190],[4.3137,50.9139]]]}
 };
 
-// Sheet name to filter type mapping for Belgium XLSX import
-function mapSheetToTypes(sheetName, row) {
-  const sn = sheetName.toLowerCase().trim();
-  const expertise = (row[1]||'').toString().toLowerCase().trim();
+// ======= IMPORT INTELLIGENT =======
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 
-  if (sn.includes('dj')) return 'DJ';
-  if (sn.includes('radio')) return 'Radio';
-  if (sn.includes('média') || sn.includes('media')) return 'Media Spé';
-  if (sn.includes('marque')) return 'Marques';
+function findHeaderRow(rows){
+  const keys=['nom','societe','structure','ville','email','mail','instagram','expertise','categorie','adresse','url','site'];
+  for(let i=0;i<Math.min(rows.length,10);i++){
+    const r=rows[i]||[];
+    const matches=r.filter(c=>keys.some(k=>norm(c).includes(k))).length;
+    if(matches>=2)return i;
+  }
+  return 0;
+}
 
-  if (sn.includes('management') || sn.includes('booking')) {
-    if (expertise.includes('management') && expertise.includes('booking')) return 'Management';
-    if (expertise.includes('booking')) return 'Booking';
-    if (expertise.includes('management')) return 'Management';
-    return 'Booking';
+function findCol(headers,synonyms){
+  for(const syn of synonyms){
+    const idx=headers.findIndex(h=>norm(h).includes(syn));
+    if(idx>=0)return idx;
   }
-  if (sn.includes('concert') || sn.includes('festival')) {
-    if (expertise.includes('festival')) return 'Festival';
-    if (expertise.includes('concert') || expertise.includes('lieu') || expertise.includes('salle')) return 'Lieu';
-    return 'Festival';
+  return -1;
+}
+
+function detectTypes(sheetName,row,headers,expertiseVal){
+  const sn=norm(sheetName);
+  const exp=norm(expertiseVal);
+  const rowText=norm(row.join(' '));
+
+  if(sn.includes('dj'))return['DJ'];
+  if(sn.includes('radio'))return['Radio'];
+  if(sn.includes('media'))return['Media Spé'];
+  if(sn.includes('marque'))return['Marques'];
+
+  if(sn.includes('management')||sn.includes('booking')||exp.includes('management')||exp.includes('booking')){
+    const hasM=exp.includes('management')||sn.includes('management');
+    const hasB=exp.includes('booking')||sn.includes('booking');
+    if(hasM&&hasB)return['Management','Booking'];
+    if(hasB)return['Booking'];
+    if(hasM)return['Management'];
+    return ['Booking'];
   }
-  return FILTERS.belgium[0];
+
+  if(sn.includes('concert')||sn.includes('festival')||sn.includes('lieu')||sn.includes('salle')){
+    if(exp.includes('festival')||rowText.includes('festival'))return['Festival'];
+    if(exp.includes('lieu')||exp.includes('salle')||exp.includes('concert'))return['Lieu'];
+    return['Lieu'];
+  }
+
+  return[FILTERS[currentCountry][0]];
 }
 
 let currentStep='login', currentCountry=null, localData=[], geoPaths=[];
@@ -166,7 +191,6 @@ function loadGeo(){
       const name=f.properties.NameFRE||f.properties.name_fr||f.properties.name;
       return{id:name,name,geometry:f.geometry};
     });
-    // Add Brussels for Belgium
     if(currentCountry==='belgium'){
       const hasBrussels=geoPaths.some(g=>g.name.toLowerCase().includes('bruxelles'));
       if(!hasBrussels){
@@ -202,7 +226,6 @@ function deptsWithData(){
   localData.forEach(i=>{if((filterType==='All'||i.type===filterType)&&(filterCat==='All'||i.cat===filterCat))s.add(String(i.dept))});
   return s;
 }
-
 function renderMap(){
   const svgVB=currentCountry==='france'?"0 0 600 650":"30 0 530 310";
   const types=FILTERS[currentCountry];
@@ -293,7 +316,6 @@ function renderListOnly(){
   const allSelected=items.length>0&&items.every(i=>selectedKeys.has(i.fbKey));
   ls.innerHTML=renderList(items,allSelected);
   bindListEvents();
-  // Update bulk bar
   const existing=document.querySelector('.bulk-bar');
   if(selectedKeys.size>0&&!existing){
     const mg=document.querySelector('.main-grid');
@@ -335,7 +357,6 @@ function bindMap(){
   document.getElementById('filterType').onchange=e=>{filterType=e.target.value;selectedDept=null;selectedKeys.clear();renderListOnly();updateMapHighlights()};
   document.getElementById('filterCat').onchange=e=>{filterCat=e.target.value;selectedDept=null;selectedKeys.clear();renderListOnly();updateMapHighlights()};
 
-  // Map paths
   const tooltip=document.getElementById('tooltip');
   document.querySelectorAll('.dept-path').forEach(p=>{
     p.onmouseenter=()=>{tooltip.style.display='block';tooltip.textContent=p.dataset.name};
@@ -406,61 +427,80 @@ function handleImport(e){
   const reader=new FileReader();
   reader.onload=async ev=>{
     let allData=[];
+    const typesSummary={};
     try{
+      const processRows=(sheetName,rows)=>{
+        const headerIdx=findHeaderRow(rows);
+        const headers=rows[headerIdx]||[];
+        const cNom=findCol(headers,['nom','societe','structure','marque','artist']);
+        const cVille=findCol(headers,['ville','city','location']);
+        const cExp=findCol(headers,['expertise','specialit','domaine']);
+        const cCat=findCol(headers,['categorie','status','statut','accessib']);
+        const cInsta=findCol(headers,['instagram','insta','reseau','social']);
+        const cUrl=findCol(headers,['url','site','web','lien']);
+        const cEmail=findCol(headers,['email','mail','contact']);
+        const cAddr=findCol(headers,['adresse','address']);
+        const cDept=findCol(headers,['province','departement','département','region','zone']);
+
+        rows.slice(headerIdx+1).forEach(row=>{
+          if(!row)return;
+          const name=String(row[cNom>=0?cNom:0]||'').trim();
+          if(!name||norm(name)==='nom')return;
+          const expertiseVal=cExp>=0?String(row[cExp]||''):'';
+          const city=cVille>=0?String(row[cVille]||'').trim():'';
+          const dept=cDept>=0?String(row[cDept]||'').trim():city;
+          const cat=cCat>=0?String(row[cCat]||'').trim():'';
+          let url=cUrl>=0?String(row[cUrl]||'').trim():'';
+          const insta=cInsta>=0?String(row[cInsta]||'').trim():'';
+          let email=cEmail>=0?String(row[cEmail]||'').trim():'';
+          const address=cAddr>=0?String(row[cAddr]||'').trim():'';
+
+          // Si email contient une URL, on la déplace vers URL
+          if(email&&/^https?:\/\/|www\.|\.com|\.be|\.fr|instagram\.com/i.test(email)&&!email.includes('@')){
+            if(!url)url=email;
+            email='';
+          }
+          if(!url&&insta)url=insta;
+
+          const types=detectTypes(sheetName,row,headers,expertiseVal);
+          types.forEach(t=>{
+            typesSummary[t]=(typesSummary[t]||0)+1;
+            allData.push({name,city,dept,type:t,cat:cat||'Accessible',url,email,address});
+          });
+        });
+      };
+
       if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')){
         const wb=XLSX.read(ev.target.result,{type:'binary'});
-        wb.SheetNames.forEach(sheetName=>{
-          const sheet=wb.Sheets[sheetName];
-          const rows=XLSX.utils.sheet_to_json(sheet,{header:1});
-          // Find header row (first row with content)
-          let headerIdx=0;
-          for(let i=0;i<Math.min(rows.length,5);i++){
-            if(rows[i]&&rows[i].some(c=>c&&String(c).toLowerCase().includes('nom'))){headerIdx=i;break}
-          }
-          // Find column indices
-          const headers=(rows[headerIdx]||[]).map(h=>String(h||'').toLowerCase().trim());
-          const colName=headers.findIndex(h=>h.includes('nom'));
-          const colExpertise=headers.findIndex(h=>h.includes('expertise'));
-          const colCat=headers.findIndex(h=>h.includes('catégorie')||h.includes('categorie'));
-          const colCity=headers.findIndex(h=>h.includes('ville'));
-          const colInsta=headers.findIndex(h=>h.includes('instagram')||h.includes('insta'));
-          const colEmail=headers.findIndex(h=>h.includes('email')||h.includes('mail'));
-          const colAddr=headers.findIndex(h=>h.includes('adresse')||h.includes('address'));
-
-          rows.slice(headerIdx+1).forEach(row=>{
-            if(!row||!row[colName>=0?colName:0])return;
-            const name=String(row[colName>=0?colName:0]||'').trim();
-            if(!name)return;
-            const type=mapSheetToTypes(sheetName,row);
-            const city=colCity>=0?String(row[colCity]||'').trim():'';
-            // Try to find province/dept from city or dedicated column
-            let dept=city;
-            const cat=colCat>=0?String(row[colCat]||'').trim():'Accessible';
-            const url=colInsta>=0?String(row[colInsta]||'').trim():'';
-            const email=colEmail>=0?String(row[colEmail]||'').trim():'';
-            const address=colAddr>=0?String(row[colAddr]||'').trim():'';
-
-            allData.push({name,city,dept,type,cat:cat||'Accessible',url,email,address});
-          });
+        wb.SheetNames.forEach(sn=>{
+          const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+          processRows(sn,rows);
         });
       }else{
         const content=ev.target.result;
-        const lines=content.split(/\r?\n/).filter(l=>l.trim());
         const sep=content.includes(';')?';':',';
-        allData=lines.slice(1).map(line=>{
-          const parts=line.split(new RegExp(`${sep}(?=(?:(?:[^"]*"){2})*[^"]*$)`)).map(p=>p.replace(/^"|"$/g,'').trim());
-          return{name:parts[0]||'',city:parts[1]||'',dept:String(parts[2]||''),type:parts[3]||'',cat:parts[4]||'Accessible',url:parts[5]||'',email:parts[6]||'',address:parts[7]||''};
-        }).filter(i=>i.name);
+        const lines=content.split(/\r?\n/).filter(l=>l.trim());
+        const rows=lines.map(line=>line.split(new RegExp(`${sep}(?=(?:(?:[^"]*"){2})*[^"]*$)`)).map(p=>p.replace(/^"|"$/g,'').trim()));
+        processRows(file.name.replace(/\.[^.]+$/,''),rows);
       }
-      const existing=new Set(localData.map(i=>i.name.trim().toLowerCase()));
-      const finalData=allData.filter(i=>!existing.has(i.name.trim().toLowerCase()));
+
+      // Déduplication : clef = Nom + Type
+      const existing=new Set(localData.map(i=>norm(i.name)+'|'+norm(i.type)));
+      const seen=new Set();
+      const finalData=allData.filter(i=>{
+        const k=norm(i.name)+'|'+norm(i.type);
+        if(existing.has(k)||seen.has(k))return false;
+        seen.add(k);return true;
+      });
+
       if(finalData.length===0){alert("Pas de nouveautés.");return}
-      if(confirm(`Importer ${finalData.length} fiches ?`)){
+      const summary=Object.entries(typesSummary).map(([t,n])=>`• ${n} ${t}`).join('\n');
+      if(confirm(`Importer ${finalData.length} fiches ?\n\n${summary}`)){
         const promises=finalData.map(item=>db.ref('opportunities_'+currentCountry).push({...item,id:Date.now()+Math.random()}));
         await Promise.all(promises);
-        alert("Ok !");
+        alert("Importé avec succès !");
       }
-    }catch(err){alert("Erreur d'import : "+err.message)}
+    }catch(err){alert("Erreur d'import : "+err.message);console.error(err)}
   };
   if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls'))reader.readAsBinaryString(file);
   else reader.readAsText(file);
